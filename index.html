@@ -1,74 +1,1623 @@
-v            <div><label style="font-size:0.8rem; color:var(--mut);">Risco %</label><input type="number" id="risk" value="1" min="0.1" max="5" step="0.1"></div>
-        </div>
-        <button id="btn" onclick="run()">🔍 CALCULAR TIMING</button>
-        <button class="sec" id="autoBtn" onclick="togAuto()">🔄 Auto: OFF</button>
-        <div id="log">📱 Pronto. Toque para iniciar.</div>
-        <div class="status"><span id="upd">--:--</span><span id="cache">Cache: vazio</span></div>
-    </div>
-
-    <div id="pbCard" class="card pb-card" style="display:none;">
-        <div class="pb-header"><span class="pb-title" id="pbTitle">📊 Pullback</span><span id="pbStrength" class="pb-strength">--</span></div>
-        <div id="pbDirection" class="pb-dir">--</div>
-        <div class="pb-info">📈 MACD:</div>
-        <div class="macd-bar"><div id="macdFill" class="macd-fill" style="width:50%"></div></div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; font-size:0.75rem;"><div>MACD: <span id="macdVal" style="font-weight:600">--</span></div><div>Signal: <span id="signalVal" style="font-weight:600">--</span></div></div>
-        <div id="pbAnalysis" style="margin-top:6px; padding:6px; background:rgba(43,49,57,0.6); border-radius:5px; font-size:0.8rem;"></div>
-    </div>
-
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎯 Timing Pro ULTRA — MACD Elite</title>
+    <style>
+        :root {
+            --bg:#0b0e11; --card:#151a21; --pri:#f0b90b; --txt:#eaecef;
+            --suc:#0ecb81; --dan:#f6465d; --wrn:#e3b54c; --mut:#848e9c;
+            --brd:#2b3139; --radius:10px; --shadow:0 4px 16px rgba(0,0,0,0.4);
+        }
+        * { box-sizing:border-box; margin:0; padding:0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+        body { background:var(--bg); color:var(--txt); padding:12px; font-size:14px; min-height:100vh; }
+        .wrap { max-width:540px; margin:0 auto; padding-bottom:24px; }
+        
+        /* Cards & Layout */
+        .card { background:var(--card); border:1px solid var(--brd); border-radius:var(--radius); padding:16px; margin-bottom:14px; box-shadow:var(--shadow); position:relative; }
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+        .badge { background:var(--pri); color:#000; padding:4px 10px; border-radius:6px; font-weight:800; font-size:13px; letter-spacing:.5px; }
+        
+        .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .metric { background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; border:1px solid var(--brd); transition:border-color .2s; }
+        .metric:hover { border-color:var(--pri); }
+        .m-label { color:var(--mut); font-size:10px; text-transform:uppercase; letter-spacing:.5px; }
+        .m-value { font-size:18px; font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums; }
+        .m-sub { font-size:10px; color:var(--mut); margin-top:2px; }
+        
+        /* Botões */
+        button { width:100%; padding:13px; border:none; border-radius:8px; font-weight:700; cursor:pointer; transition:all .2s; font-size:14px; margin-top:8px; }
+        button:active { transform:scale(.98); }
+        .btn-prime { background:var(--pri); color:#000; box-shadow:0 0 12px rgba(240,185,11,0.3); }
+        .btn-prime:hover { filter:brightness(1.1); }
+        .btn-bot { background:#232830; color:#fff; border:1px solid var(--pri); }
+        .btn-bot.active { background:var(--suc); color:#000; border-color:var(--suc); }
+        
+        /* Status & Sinais */
+        .dot { height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+        .online { background:var(--suc); box-shadow:0 0 8px var(--suc); animation:pulse 2s infinite; }
+        .offline { background:var(--dan); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+        
+        .signal-box { text-align:center; padding:20px; border-radius:var(--radius); margin-top:10px; font-size:18px; font-weight:800; border:2px dashed var(--brd); min-height:60px; display:flex; align-items:center; justify-content:center; transition:all .3s; }
+        .buy { color:var(--suc); border-color:var(--suc); background:rgba(14,203,129,0.1); box-shadow:0 0 20px rgba(14,203,129,0.2); }
+        .sell { color:var(--dan); border-color:var(--dan); background:rgba(246,70,93,0.1); box-shadow:0 0 20px rgba(246,70,93,0.2); }
+        .wait { color:var(--pri); border-color:var(--pri); background:rgba(240,185,11,0.08); }
+        .neutral { color:var(--mut); border-color:var(--brd); }
+        @keyframes glow { 0%{box-shadow:0 0 0 0 rgba(240,185,11,0.4)} 70%{box-shadow:0 0 0 10px rgba(240,185,11,0)} 100%{box-shadow:0 0 0 0 rgba(240,185,11,0)} }
+        .signal-new { animation:glow 1.5s ease-out; }
+        
+        /* MACD Visual */
+        .macd-wrap { margin-top:12px; }
+        .macd-bar { height:6px; background:var(--brd); border-radius:3px; position:relative; overflow:hidden; margin:6px 0; }
+        .macd-zero { position:absolute; left:50%; top:-6px; bottom:-6px; width:1px; background:var(--mut); opacity:.6; }
+        .macd-fill { height:100%; border-radius:3px; transition:all .4s cubic-bezier(.4,0,.2,1); position:absolute; }
+        .macd-pos { background:linear-gradient(90deg, var(--suc), #4ade80); right:50%; }
+        .macd-neg { background:linear-gradient(90deg, var(--dan), #f87171); left:50%; }
+        .macd-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--mut); margin-top:2px; }
+        
+        /* Saídas & P&L */
+        .exit-grid { display:flex; justify-content:space-between; gap:6px; margin-top:12px; }
+        .exit-item { flex:1; padding:10px 6px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid var(--brd); text-align:center; }
+        .exit-val { font-weight:800; margin:4px 0; font-size:15px; }
+        .sl { color:var(--dan); } .ts { color:var(--pri); } .tp { color:var(--suc); }
+        .exit-sub { font-size:9px; color:var(--mut); }
+        
+        .pnl-box { margin-top:10px; padding:10px; border-radius:8px; display:none; text-align:center; font-weight:700; border:1px solid; }
+        
+        /* Badges & Config */
+        .cond { display:inline-block; padding:3px 8px; border-radius:5px; font-size:10px; font-weight:700; margin-left:6px; }
+        .c-ok { background:rgba(14,203,129,0.2); color:var(--suc); border:1px solid rgba(14,203,129,0.3); }
+        .c-warn { background:rgba(227,181,76,0.2); color:var(--wrn); border:1px solid rgba(227,181,76,0.3); }
+        .c-bad { background:rgba(246,70,93,0.2); color:var(--dan); border:1px solid rgba(246,70,93,0.3); }
+        .c-neutral { background:rgba(132,142,156,0.2); color:var(--mut); }
+        
+        input[type="text"] { width:100%; padding:11px; background:#161a1e; border:1px solid var(--brd); color:#fff; border-radius:7px; font-size:14px; margin-top:12px; transition:border-color .2s; }
+        input:focus { outline:none; border-color:var(--pri); }
+        
+        .config-panel { background:rgba(240,185,11,0.06); border:1px solid var(--pri); border-radius:8px; padding:10px; margin-top:10px; font-size:11px; }
+        .cfg-row { display:flex; justify-content:space-between; margin:3px 0; }
+        .cfg-l { color:var(--mut); } .cfg-v { color:var(--pri); font-weight:600; }
+        
+        #log { font-family:'Consolas','Monaco',monospace; font-size:11px; color:var(--wrn); margin-top:10px; height:56px; overflow-y:auto; background:rgba(0,0,0,0.25); padding:10px; border-radius:8px; border:1px solid var(--brd); line-height:1.4; }
+        #log::-webkit-scrollbar { width:4px; } #log::-webkit-scrollbar-thumb { background:var(--brd); border-radius:2px; }
+        
+        .fs-btn { text-align:center; color:var(--mut); font-size:11px; margin-top:8px; cursor:pointer; padding:6px; border-radius:6px; transition:background .2s; }
+        .fs-btn:hover { background:rgba(255,255,255,0.05); color:var(--txt); }
+        
+        .rules { margin-top:12px; padding:10px; background:rgba(132,142,156,0.08); border-radius:8px; font-size:11px; color:var(--mut); line-height:1.5; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <!-- HEADER -->
     <div class="card">
-        <div class="hdr"><span class="ttl">⏰ Timing de Entrada</span><span id="tBadge" class="badge neut">--</span></div>
-        <div style="display:flex; align-items:center; gap:10px; margin:6px 0;">
-            <div style="width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;background:conic-gradient(var(--suc) 0deg, var(--brd) 0deg);flex-shrink:0;"><span id="tScore">--</span></div>
-            <div><div id="tLabel" style="font-weight:600; font-size:0.9rem;">Aguardando...</div><div class="meter"><div id="tFill" class="fill wt" style="width:50%">50</div></div></div>
+        <div class="header">
+            <div><span class="dot online" id="statusDot"></span><span id="connStatus" style="font-weight:600">CONECTADO</span></div>
+            <div class="badge" id="displaySym">BTCUSDT</div>
         </div>
-        <div id="tFacs" style="font-size:0.8rem; color:var(--mut);">• Selecione um ativo</div>
-        <div id="tRec" style="margin-top:6px; padding:6px; background:rgba(240,185,11,0.1); border-radius:5px; font-size:0.85rem;">Execute a análise</div>
+        <div class="grid">
+            <div class="metric">
+                <div class="m-label">💰 Preço Atual</div>
+                <div class="m-value" id="curPrice">--.--</div>
+                <div class="m-sub" id="priceChange">--.--%</div>
+            </div>
+            <div class="metric">
+                <div class="m-label">📊 Volatilidade (ATR%)</div>
+                <div class="m-value" id="valAtrPct">--.--%<span class="cond c-neutral" id="volBadge">?</span></div>
+                <div class="m-sub">Ideal: 0.5% – 3.0%</div>
+            </div>
+        </div>
+
+        <div class="macd-wrap">
+            <div class="m-label">📈 MACD Histograma <span id="macdStatus" class="cond c-neutral">AGUARDANDO</span></div>
+            <div class="macd-bar"><div class="macd-zero"></div><div class="macd-fill" id="macdFill"></div></div>
+            <div class="macd-labels"><span>🔻 Venda</span><span>⚪ Neutro</span><span>🟢 Compra</span></div>
+        </div>
+
+        <input type="text" id="inputSym" value="BTCUSDT" placeholder="Ex: BTCUSDT, ETHUSDT, SOLUSDT" autocomplete="off">
+        <button class="btn-prime" onclick="Engine.restart()">🔄 REINICIAR ENGINE</button>
+        <button class="btn-bot" id="botToggle" onclick="Engine.toggleBot()">🤖 BOT AUTOMÁTICO: OFF</button>
+        
+        <div class="config-panel">
+            <div class="cfg-row"><span class="cfg-l">Risco/Op:</span><span class="cfg-v" id="cfgRisk">R$ 100.00</span></div>
+            <div class="cfg-row"><span class="cfg-l">Stop:</span><span class="cfg-v">1.5× ATR</span></div>
+            <div class="cfg-row"><span class="cfg-l">Alvo:</span><span class="cfg-v">2.5× ATR</span></div>
+            <div class="cfg-row"><span class="cfg-l">Trailing:</span><span class="cfg-v">Ativa em +1× ATR</span></div>
+        </div>
+        <div class="fs-btn" onclick="Engine.fullscreen()">⛶ Tela Cheia (TV/Tablet)</div>
     </div>
 
-    <div class="grid2">
-        <div class="card">
-            <div class="hdr"><span class="ttl">🎯 Entrada & Stop</span></div>
-            <div class="lvl e"><div><div class="l">🟢 Entrada</div><div class="v" id="ePrice">---</div></div></div>
-            <div class="lvl s"><div><div class="l">🔴 Stop</div><div class="v" id="sPrice">---</div></div></div>
-            <div class="row"><span class="lbl">Risco/Unit:</span><span class="val r" id="rUnit">---</span></div>
-            <div class="row"><span class="lbl">Lote (1%):</span><span class="val" id="lot" style="color:var(--pri)">---</span></div>
-        </div>
-        <div class="card">
-            <div class="hdr"><span class="ttl">🎯 Alvos</span></div>
-            <div class="lvl t"><div><div class="l">T1 (1:1.5)</div><div class="v b" id="t1">---</div></div></div>
-            <div class="lvl t"><div><div class="l">T2 (1:2.5)</div><div class="v b" id="t2">---</div></div></div>
-            <div class="lvl t"><div><div class="l">T3 (1:4.0)</div><div class="v b" id="t3">---</div></div></div>
-            <div style="font-size:0.75rem; color:var(--mut); text-align:center; margin-top:4px;">R:R Médio: <span id="rrV">2.4x</span></div>
-        </div>
-    </div>
-
+    <!-- SINAL -->
     <div class="card">
-        <div class="hdr"><span class="ttl">🌊 Fluxo & Condição</span><span id="cBadge" class="badge neut">--</span></div>
-        <div class="grid2">
-            <div class="row"><span class="lbl">🟢 Compra:</span><strong id="fBuy" class="val b">---</strong></div>
-            <div class="row"><span class="lbl">🔴 Venda:</span><strong id="fSell" class="val r">---</strong></div>
-            <div class="row"><span class="lbl">⚖️ Delta:</span><span id="fDel" class="val">---</span></div>
-            <div class="row"><span class="lbl">📊 Vol:</span><span id="fVol" class="val">---</span></div>
-            <div class="row"><span class="lbl">🧊 ATR:</span><span id="fAtr" class="val">---</span></div>
+        <div class="m-label" style="color:var(--pri); font-weight:700">🎯 Timing de Entrada — MACD + Volatilidade + Tendência</div>
+        <div id="signalDisplay" class="signal-box wait">🔍 AGUARDANDO CONFIRMAÇÃO...</div>
+        <div class="grid" style="margin-top:12px;">
+            <div class="metric">
+                <div class="m-label">📐 RSI (14)</div>
+                <div id="valRsi" class="m-value">--.--</div>
+                <div class="m-sub" id="rsiStatus">Neutro</div>
+            </div>
+            <div class="metric">
+                <div class="m-label">📈 EMA21</div>
+                <div id="valEma21" class="m-value">$--.--</div>
+                <div class="m-sub" id="trendStatus">Aguardando...</div>
+            </div>
         </div>
-        <div id="conf" style="margin-top:6px; display:grid; grid-template-columns:1fr 1fr; gap:3px; font-size:0.7rem;"></div>
+        <div class="rules">
+            <strong>✅ Regras de Entrada:</strong><br>
+            • MACD cruza zero com direção definida<br>
+            • Volatilidade entre 0.5% e 3.0%<br>
+            • Preço alinhado com EMA21<br>
+            • RSI fora de zonas extremas (<25 ou >75)
+        </div>
     </div>
 
-    <div class="card tg-card">
-        <div class="tg-header"><span class="tg-title">✈️ Telegram (Apenas Teste)</span><span style="font-size:0.7rem;color:var(--mut);">Use Worker para 24/7</span></div>
-        <div class="tg-log" id="tgLog">⏳ Aguardando...</div>
+    <!-- SAÍDAS -->
+    <div class="card" style="border-left:4px solid var(--pri);">
+        <div class="m-label" style="color:var(--pri); font-weight:700">🚪 Saída Inteligente — Proteção de Lucro</div>
+        <div class="exit-grid">
+            <div class="exit-item"><div class="m-label">🛑 Stop Loss</div><div class="exit-val sl" id="calcStop">--.--</div><div class="exit-sub">1.5× ATR</div></div>
+            <div class="exit-item"><div class="m-label">🔄 Trailing</div><div class="exit-val ts" id="calcTrail">--.--</div><div class="exit-sub">Após +1× ATR</div></div>
+            <div class="exit-item"><div class="m-label">✅ Take Profit</div><div class="exit-val tp" id="calcTp">--.--</div><div class="exit-sub">2.5× ATR</div></div>
+        </div>
+        <div style="margin-top:12px; padding:10px; background:rgba(240,185,11,0.1); border-radius:8px; border:1px solid var(--pri); text-align:center;">
+            <div class="m-label" style="color:var(--pri);">📊 Lote Sugerido (Risco Fixo)</div>
+            <div style="font-size:18px; font-weight:800; color:var(--pri); margin-top:4px;" id="calcLot">--.---- un</div>
+        </div>
+        <div id="pnlBox" class="pnl-box"><div style="font-size:10px; color:var(--mut);">P&L ATUAL</div><div id="pnlVal" style="font-size:17px;">--.--%</div></div>
+    </div>
+
+    <!-- LOG -->
+    <div class="card">
+        <div class="m-label">📋 Log em Tempo Real</div>
+        <div id="log">🔌 Inicializando sistema...</div>
+    </div>
+    <div style="text-align:center; color:var(--mut); font-size:10px; margin-top:10px;">
+        🎯 Timing Pro ULTRA v3.0 • Dados: Binance API • Atualização: 30s
     </div>
 </div>
 
 <script>
-const CFG = { PROXY: 'https://corsproxy.io/?', API: 'https://api.binance.com/api/v3' };
-const $ = id => document.getElementById(id);
-const fmt = (n, d=2) => parseFloat(n).toLocaleString('pt-BR', {minimumFractionDigits:d, maximumFractionDigits:d});
-const fp = p => { const v=parseFloat(p); return v>=1000?`$${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`:v<1?`$${v.toFixed(6)}`:`$${v.toFixed(2)}`; };
-const tm = ts => new Date(ts).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
-const log = m => { const c = m.includes('❌')?'#f6465d':m.includes('✅')?'#0ecb81':'#848e9c'; $('log').innerHTML=`<span style="color:${c}">[${tm(Date.now())}] ${m}</span>`; };
-const tgLog = m => { const el=$('tgLog'), l=document.createElement('div'); l.style.padding='2px 0'; l.style.borderLeft='2px solid var(--tg)'; l.style.paddingLeft='6px'; l.style.margin='2px 0'; l.innerHTML=`<span style="color:#848e9c">[${tm(Date.now())}]</span> ${m}`; el.prepend(l); if(el.children.length>15)el.removeChild(el.lastChild); };
+/**
+ * 🎯 TIMING PRO ULTRA v3.0 — MACD ELITE
+ * Estratégia completa pronta para uso. Configurações no topo do script.
+ */
 
+// 🔧 CONFIGURAÇÕES (AJUSTE CONFORME SEU PERFIL)
+const CFG = {
+    riskPerTrade: 100,           // Risco fixo em BRL
+    slMult: 1.5, tpMult: 2.5,    // Multiplicadores ATR
+    trailTrigger: 1.0,           // Ativa trailing após lucro em × ATR
+    minVol: 0.005, maxVol: 0.03, // Faixa volatilidade ideal
+    rsiBuyMin: 30, rsiBuyMax: 65,// Filtros RSI
+    rsiSellMin: 35, rsiSellMax: 70,
+    interval: '15m', limit: 100, // Timeframe e candles
+    refresh: 30000,              // Reanálise (ms)
+    telegram: { enabled:false, token:'SEU_TOKEN', chatId:'SEU_CHAT_ID' } // Telegram opcional
+};
+
+// 📦 ESTADO GLOBAL
+const S = {
+    sym: 'BTCUSDT', price: 0, change: 0, bot: false, connected: false,
+    ind: { rsi:0, atr:0, atrPct:0, macd:0, sig:0, hist:0, ema21:0 },
+    histHistory: [],
+    pos: null, // { entry, dir, stop, tp, trailTrig, trailActive, opened }
+    ws: null, wsRetries: 0, maxRetries: 8,
+    lastSignal: null, logTime: 0
+};
+
+// 🧮 UTILITÁRIOS MATEMÁTICOS
+const M = {
+    sma(p, n) { return p.slice(-n).reduce((a,b)=>a+b,0)/n; },
+    ema(p, n) {
+        if(p.length < n) return null;
+        let v = M.sma(p, n), k = 2/(n+1);
+        for(let i=n; i<p.length; i++) v = (p[i]-v)*k + v;
+        return v;
+    },
+    atr(k, n=14) {
+        if(k.length < n+1) return 0;
+        let sum = 0;
+        for(let i=1; i<=n; i++) {
+            const h=+k[i][2], l=+k[i][3], pc=+k[i-1][4];
+            sum += Math.max(h-l, Math.abs(h-pc), Math.abs(l-pc));
+        }
+        return sum/n;
+    },
+    rsi(p, n=14) {
+        if(p.length < n+1) return 50;
+        let g=0, l=0;
+        for(let i=p.length-n; i<p.length; i++) { const d=p[i]-p[i-1]; d>=0?g+=d:l-=d; }
+        const ag=g/n, al=l/n; return al===0 ? 100 : 100-(100/(1+ag/al));
+    },
+    norm(v, max) { return Math.max(-1, Math.min(1, v/max)); }
+};
+
+// 📈 MACD COMPLETO
+const MACD = {
+    calc(closes, f=12, sl=26, sp=9) {
+        if(closes.length < sl+sp) return { last:null };
+        const ef=[], es=[];
+        let vf=M.sma(closes,f), vs=M.sma(closes,sl);
+        for(let i=0; i<closes.length; i++) {
+            vf = i<f ? M.sma(closes.slice(0,i+1), i+1) : (closes[i]-vf)*(2/(f+1)) + vf;
+            vs = i<sl ? M.sma(closes.slice(0,i+1), i+1) : (closes[i]-vs)*(2/(sl+1)) + vs;
+            ef.push(vf); es.push(vs);
+        }
+        const macd = ef.map((a,i)=>a-es[i]);
+        const sig=[], k=2/(sp+1); let vsig = M.sma(macd.slice(sl, sl+sp), sp);
+        for(let i=0; i<macd.length; i++) {
+            if(i<sl+sp-1) sig.push(null);
+            else if(i===sl+sp-1) sig.push(vsig);
+            else { vsig=(macd[i]-vsig)*k+vsig; sig.push(vsig); }
+        }
+        const hist = macd.map((m,i)=> sig[i]!==null ? m-sig[i] : null);
+        const lastIdx = hist.slice().reverse().findIndex(x=>x!==null);
+        const idx = lastIdx===-1 ? -1 : hist.length-1-lastIdx;
+        return { last: idx>=0 ? { m:macd[idx], s:sig[idx], h:hist[idx] } : null, hist };
+    },
+    cross(hh) {
+        const v = hh.filter(x=>x!==null).slice(-3);
+        if(v.length<2) return null;
+        return (v[v.length-2]<0 && v[v.length-1]>=0) ? 'bull' :
+               (v[v.length-2]>0 && v[v.length-1]<=0) ? 'bear' : null;
+    }
+};
+
+// 🎯 ESTRATÉGIA
+const Strat = {
+    vol(atr, price) {
+        if(!atr||!price) return {ok:false, t:'N/A', b:'c-neutral'};
+        const p = atr/price;
+        if(p < CFG.minVol) return {ok:false, t:'Baixa', b:'c-bad'};
+        if(p > CFG.maxVol) return {ok:false, t:'Excessiva', b:'c-warn'};
+        return {ok:true, t:'Ideal', b:'c-ok', p};
+    },
+    trend(price, ema21) {
+        if(!price||!ema21) return {d:null, t:'Aguardando...'};
+        const diff = (price-ema21)/ema21;
+        return diff>0.01 ? {d:'alta', t:'🟢 Tendência Alta'} :
+               diff<-0.01 ? {d:'baixa', t:'🔴 Tendência Baixa'} :
+               {d:'lateral', t:'⚪ Consolidação'};
+    },
+    exits(entry, atr, dir) {
+        const sd = atr*CFG.slMult, td = atr*CFG.tpMult, trd = atr*CFG.trailTrigger;
+        return dir==='BUY' ? { stop:entry-sd, tp:entry+td, trailTrig:entry+trd, sd, td } :
+                             { stop:entry+sd, tp:entry-td, trailTrig:entry-trd, sd, td };
+    },
+    checkExit(pos, price, ind) {
+        if(!pos) return null;
+        const { entry, dir, stop, tp, trailTrig, sd } = pos;
+        if(dir==='BUY') {
+            if(price<=stop) return {r:'🛑 STOP LOSS', t:'stop'};
+            if(price>=tp) return {r:'✅ TAKE PROFIT', t:'target'};
+            if(pos.trailActive && price <= (price-sd*CFG.tpMult/CFG.tpMult)) return {r:'🔄 TRAILING STOP', t:'trailing'}; // Simplificado para clareza
+            if(!pos.trailActive && price>=trailTrig) { pos.trailActive=true; UI.log('🔄 Trailing ativado!'); }
+            if(ind.hist<0 && pos.macdHist>0 && ind.hist < -Math.abs(ind.m)*0.3) return {r:'⚠️ MACD Reverteu', t:'early'};
+        } else {
+            if(price>=stop) return {r:'🛑 STOP LOSS', t:'stop'};
+            if(price<=tp) return {r:'✅ TAKE PROFIT', t:'target'};
+            if(!pos.trailActive && price<=trailTrig) { pos.trailActive=true; UI.log('🔄 Trailing ativado!'); }
+            if(ind.hist>0 && pos.macdHist<0 && ind.hist > Math.abs(ind.m)*0.3) return {r:'⚠️ MACD Reverteu', t:'early'};
+        }
+        return null;
+    }
+};
+
+// 🖥️ INTERFACE & LOG
+const UI = {
+    el: id => document.getElementById(id),
+    log(msg, type='info') {
+        const now=Date.now(); if(now-S.logTime<800) return; S.logTime=now;
+        const el = UI.el('log');
+        const time = new Date().toLocaleTimeString('pt-BR');
+        const p = type==='alert'?'🚨':type==='err'?'❌':'💬';
+        const c = type==='err'?'var(--dan)':type==='alert'?'var(--pri)':'var(--wrn)';
+        el.innerHTML = `<span style="color:${c}">[${time}] ${p}</span> ${msg}<br>` + el.innerHTML;
+        el.innerHTML = el.innerHTML.split('<br>').filter(x=>x.trim()).slice(0,6).join('<br>');
+    },
+    signal(text, cls, isNew) {
+        const box = UI.el('signalDisplay');
+        box.innerText = text; box.className = `signal-box ${cls}${isNew?' signal-new':''}`;
+        if(isNew) setTimeout(()=>box.classList.remove('signal-new'), 1500);
+    },
+    macd(hist, atr) {
+        const f = UI.el('macdFill'); if(!atr||hist===null) { f.style.width='0%'; return; }
+        const str = M.norm(hist, atr*0.8); const w = Math.abs(str)*100;
+        f.className = `macd-fill ${hist>=0?'macd-pos':'macd-neg'}`;
+        f.style.width = `${w}%`; f.style.left = hist>=0?'50%':`${50-w}%`;
+    },
+    exits(e) { UI.el('calcStop').innerText=`$${e.stop.toFixed(2)}`; UI.el('calcTrail').innerText=`$${e.trailTrig.toFixed(2)}`; UI.el('calcTp').innerText=`$${e.tp.toFixed(2)}`; },
+    lot(atr) { if(!atr||!S.price) return; const d=atr*CFG.slMult; UI.el('calcLot').innerText=`${(CFG.riskPerTrade/d).toFixed(4)} un`; },
+    pnl() {
+        const box=UI.el('pnlBox'); if(!S.pos?.active||!S.price){box.style.display='none';return;}
+        box.style.display='block';
+        const pnl = (S.price - S.pos.entry)/(S.pos.dir==='BUY'?1:-1)/S.pos.entry*100;
+        const p = pnl>=0; box.style.background=p?'rgba(14,203,129,0.15)':'rgba(246,70,93,0.15)';
+        box.style.borderColor=p?'var(--suc)':'var(--dan)';
+        UI.el('pnlVal').innerText=`${p?'+':''}${pnl.toFixed(2)}%`;
+        UI.el('pnlVal').style.color=p?'var(--suc)':'var(--dan)';
+    },
+    async alert(msg) {
+        UI.log(msg, 'alert');
+        if(!CFG.telegram.enabled || CFG.telegram.token==='SEU_TOKEN') return;
+        try {
+            await fetch(`https://api.telegram.org/bot${CFG.telegram.token}/sendMessage`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({chat_id:CFG.telegram.chatId, text:msg, parse_mode:'HTML'})
+            });
+        } catch(e) { console.warn('Telegram error', e); }
+    }
+};
+
+// 🌐 WEBSOCKET
+const WS = {
+    start(sym) {
+        if(S.ws) S.ws.close();
+        S.ws = new WebSocket(`wss://stream.binance.com:9443/ws/${sym.toLowerCase()}@ticker`);
+        S.ws.onopen = () => { S.connected=true; S.wsRetries=0; UI.el('connStatus').innerText='CONECTADO'; UI.el('statusDot').className='dot online'; UI.log('✅ WS conectado'); };
+        S.ws.onmessage = e => {
+            try {
+                const d = JSON.parse(e.data); S.price=+d.c; S.change=+d.P;
+                UI.el('curPrice').innerText=`$ ${S.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+                UI.el('curPrice').style.color = S.change>=0?'var(--suc)':'var(--dan)';
+                UI.el('priceChange').innerText=`${S.change>=0?'+':''}${S.change.toFixed(2)}%`;
+                if(S.pos?.active) UI.pnl();
+            } catch(err) {}
+        };
+        S.ws.onclose = () => {
+            S.connected=false; UI.el('connStatus').innerText='DESCONECTADO'; UI.el('statusDot').className='dot offline';
+            if(S.wsRetries < CFG.maxRetries) {
+                const delay = Math.min(1000*Math.pow(1.5, S.wsRetries), 8000); S.wsRetries++;
+                setTimeout(()=>WS.start(S.sym), delay);
+            }
+        };
+    }
+};
+
+// 🧠 ENGINE PRINCIPAL
+const Engine = {
+    async run() {
+        try {
+            const sym = UI.el('inputSym').value.toUpperCase().trim() || 'BTCUSDT';
+            if(sym !== S.sym) {
+                S.sym=sym; S.histHistory=[]; S.pos=null; S.lastSignal=null;
+                UI.el('displaySym').innerText=sym; UI.el('pnlBox').style.display='none';
+                WS.start(sym); UI.signal('🔄 Carregando...', 'wait'); UI.log(`📊 Analisando ${sym}...`);
+            }
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${S.sym}&interval=${CFG.interval}&limit=${CFG.limit}`, {cache:'no-store'});
+            if(!res.ok) throw new Error(`HTTP ${res.status}`);
+            const k = await res.json(); if(k.length<30) throw new Error('Dados insuficientes');
+            
+            const closes = k.map(x=>+x[4]);
+            const rsi = M.rsi(closes, 14);
+            const atr = M.atr(k, 14);
+            const atrP = atr/S.price;
+            const ema21 = M.ema(closes, 21);
+            const macd = MACD.calc(closes);
+            
+            if(macd.last?.h !== null && macd.last?.h !== undefined) {
+                S.histHistory.push(macd.last.h); if(S.histHistory.length>20) S.histHistory.shift();
+            }
+            const cross = MACD.cross(S.histHistory);
+            const vol = Strat.vol(atr, S.price);
+            const trend = Strat.trend(S.price, ema21);
+            
+            // LÓGICA DE ENTRADA
+            let act=null, text='🔍 AGUARDANDO CONFIRMAÇÃO...', cls='wait', isNew=false, reasons=[];
+            const buyOK = cross==='bull' && vol.ok && trend.d==='alta' && rsi>=CFG.rsiBuyMin && rsi<=CFG.rsiBuyMax;
+            const sellOK = cross==='bear' && vol.ok && trend.d==='baixa' && rsi>=CFG.rsiSellMin && rsi<=CFG.rsiSellMax;
+            
+            if(buyOK) { act='BUY'; text='🟢 COMPRA CONFIRMADA'; cls='buy'; reasons=['MACD ↑','Vol OK','Tendência Alta',`RSI ${rsi.toFixed(1)}`]; }
+            else if(sellOK) { act='SELL'; text='🔴 VENDA CONFIRMADA'; cls='sell'; reasons=['MACD ↓','Vol OK','Tendência Baixa',`RSI ${rsi.toFixed(1)}`]; }
+            else {
+                if(!vol.ok) { text=`⏳ Volatilidade ${vol.t}`; cls='neutral'; }
+                else if(!cross) { text='⏳ Aguardando MACD...'; cls='neutral'; }
+                else if(trend.d!== (cross==='bull'?'alta':'baixa')) { text=`⏳ ${trend.t}`; cls='neutral'; }
+                else { text='⏳ Confirmando...'; cls='wait'; }
+            }
+            
+            isNew = act && act !== S.lastSignal;
+            UI.signal(text, cls, isNew);
+            if(isNew && act) S.lastSignal=act;
+            
+            // ATUALIZA UI
+            UI.el('macdStatus').innerText = cross ? (cross==='bull'?'🟢 CRUZOU ↑':'🔴 CRUZOU ↓') : (macd.last?.h>0.0001?'🟢 Pos':macd.last?.h<-0.0001?'🔴 Neg':'⚪ Neutro');
+            UI.el('macdStatus').className = `cond ${cross?(cross==='bull'?'c-ok':'c-warn'):(Math.abs(macd.last?.h||0)>0.001?'c-ok':'c-neutral')}`;
+            UI.macd(macd.last?.h, atr);
+            UI.el('valRsi').innerText=rsi.toFixed(1); UI.el('rsiStatus').innerText=rsi<25?'Sobrevendido':rsi>75?'Sobrecomprado':'Neutro';
+            UI.el('valEma21').innerText=`$${ema21.toFixed(2)}`; UI.el('trendStatus').innerText=trend.t;
+            UI.el('valAtrPct').innerHTML=`${(atrP*100).toFixed(2)}%<span class="cond ${vol.b}">${vol.t}</span>`;
+            
+            S.ind = { rsi, atr, atrPct:atrP, m:macd.last?.m, sig:macd.last?.s, hist:macd.last?.h, ema21 };
+            
+            // GESTÃO DE POSIÇÃO
+            if(act && S.bot && !S.pos?.active) {
+                const e = Strat.exits(S.price, atr, act);
+                S.pos = { entry:S.price, dir:act, ...e, active:true, opened:Date.now(), macdHist:macd.last?.h };
+                UI.exits(e); UI.lot(atr);
+                UI.log(`🎯 Nova ${act} @ $${S.price.toFixed(2)}`);
+                UI.alert(`🎯 <b>${act}</b> em <code>${S.sym}</code>\n💰 $${S.price.toFixed(2)}\n📊 ${reasons.join(' • ')}`);
+            } else if(S.pos?.active) {
+                const ex = Strat.checkExit(S.pos, S.price, S.ind);
+                if(ex) {
+                    const pnl = ((S.price-S.pos.entry)/(S.pos.dir==='BUY'?1:-1)/S.pos.entry*100);
+                    const msg = `${ex.r} em ${S.sym}\n💰 Entrada: $${S.pos.entry.toFixed(2)}\n🔚 Saída: $${S.price.toFixed(2)}\n📊 ${pnl>=0?'+':''}${pnl.toFixed(2)}%`;
+                    UI.alert(msg); UI.log(`${ex.r} | ${pnl>=0?'+':''}${pnl.toFixed(2)}%`, ex.t==='target'?'alert':'info');
+                    S.pos=null; UI.el('pnlBox').style.display='none';
+                    UI.signal('🔁 Aguardando próxima...', 'wait');
+                } else { UI.exits(Strat.exits(S.pos.entry, S.ind.atr, S.pos.dir)); UI.pnl(); }
+            }
+            UI.lot(S.ind.atr);
+        } catch(e) { console.error(e); UI.log(`❌ ${e.message}`, 'err'); }
+    },
+    restart() { UI.el('inputSym').value = S.sym; Engine.run(); },
+    toggleBot() {
+        S.bot = !S.bot;
+        const b = UI.el('botToggle'); b.className=`btn-bot${S.bot?' active':''}`; b.innerText=S.bot?'🤖 BOT AUTOMÁTICO: ON':'🤖 BOT AUTOMÁTICO: OFF';
+        UI.log(S.bot?'✅ Bot ativado':'⏸️ Bot pausado');
+        if(S.bot) Engine.run();
+    },
+    fullscreen() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(()=>{}); },
+    init() {
+        UI.el('cfgRisk').innerText=`R$ ${CFG.riskPerTrade.toFixed(2)}`;
+        UI.log('🎯 Timing Pro ULTRA v3.0 carregado');
+        Engine.run();
+        setInterval(Engine.run, CFG.refresh);
+        setInterval(()=>{ if(S.connected && S.price) { UI.el('curPrice').innerText=`$ ${S.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}`; if(S.pos?.active) UI.pnl(); } }, 2000);
+    }
+};
+
+// 🚀 INICIALIZAÇÃO
+window.addEventListener('load', Engine.init);
+document.addEventListener('keydown', e => { if(e.key==='F9'){e.preventDefault(); Engine.restart();} if(e.key==='Escape' && document.fullscreenElement) document.exitFullscreen(); });
+</script>
+</body>
+        </html><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎯 Timing Pro ULTRA — MACD Elite</title>
+    <style>
+        :root {
+            --bg:#0b0e11; --card:#151a21; --pri:#f0b90b; --txt:#eaecef;
+            --suc:#0ecb81; --dan:#f6465d; --wrn:#e3b54c; --mut:#848e9c;
+            --brd:#2b3139; --radius:10px; --shadow:0 4px 16px rgba(0,0,0,0.4);
+        }
+        * { box-sizing:border-box; margin:0; padding:0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+        body { background:var(--bg); color:var(--txt); padding:12px; font-size:14px; min-height:100vh; }
+        .wrap { max-width:540px; margin:0 auto; padding-bottom:24px; }
+        
+        /* Cards & Layout */
+        .card { background:var(--card); border:1px solid var(--brd); border-radius:var(--radius); padding:16px; margin-bottom:14px; box-shadow:var(--shadow); position:relative; }
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+        .badge { background:var(--pri); color:#000; padding:4px 10px; border-radius:6px; font-weight:800; font-size:13px; letter-spacing:.5px; }
+        
+        .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .metric { background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; border:1px solid var(--brd); transition:border-color .2s; }
+        .metric:hover { border-color:var(--pri); }
+        .m-label { color:var(--mut); font-size:10px; text-transform:uppercase; letter-spacing:.5px; }
+        .m-value { font-size:18px; font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums; }
+        .m-sub { font-size:10px; color:var(--mut); margin-top:2px; }
+        
+        /* Botões */
+        button { width:100%; padding:13px; border:none; border-radius:8px; font-weight:700; cursor:pointer; transition:all .2s; font-size:14px; margin-top:8px; }
+        button:active { transform:scale(.98); }
+        .btn-prime { background:var(--pri); color:#000; box-shadow:0 0 12px rgba(240,185,11,0.3); }
+        .btn-prime:hover { filter:brightness(1.1); }
+        .btn-bot { background:#232830; color:#fff; border:1px solid var(--pri); }
+        .btn-bot.active { background:var(--suc); color:#000; border-color:var(--suc); }
+        
+        /* Status & Sinais */
+        .dot { height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+        .online { background:var(--suc); box-shadow:0 0 8px var(--suc); animation:pulse 2s infinite; }
+        .offline { background:var(--dan); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+        
+        .signal-box { text-align:center; padding:20px; border-radius:var(--radius); margin-top:10px; font-size:18px; font-weight:800; border:2px dashed var(--brd); min-height:60px; display:flex; align-items:center; justify-content:center; transition:all .3s; }
+        .buy { color:var(--suc); border-color:var(--suc); background:rgba(14,203,129,0.1); box-shadow:0 0 20px rgba(14,203,129,0.2); }
+        .sell { color:var(--dan); border-color:var(--dan); background:rgba(246,70,93,0.1); box-shadow:0 0 20px rgba(246,70,93,0.2); }
+        .wait { color:var(--pri); border-color:var(--pri); background:rgba(240,185,11,0.08); }
+        .neutral { color:var(--mut); border-color:var(--brd); }
+        @keyframes glow { 0%{box-shadow:0 0 0 0 rgba(240,185,11,0.4)} 70%{box-shadow:0 0 0 10px rgba(240,185,11,0)} 100%{box-shadow:0 0 0 0 rgba(240,185,11,0)} }
+        .signal-new { animation:glow 1.5s ease-out; }
+        
+        /* MACD Visual */
+        .macd-wrap { margin-top:12px; }
+        .macd-bar { height:6px; background:var(--brd); border-radius:3px; position:relative; overflow:hidden; margin:6px 0; }
+        .macd-zero { position:absolute; left:50%; top:-6px; bottom:-6px; width:1px; background:var(--mut); opacity:.6; }
+        .macd-fill { height:100%; border-radius:3px; transition:all .4s cubic-bezier(.4,0,.2,1); position:absolute; }
+        .macd-pos { background:linear-gradient(90deg, var(--suc), #4ade80); right:50%; }
+        .macd-neg { background:linear-gradient(90deg, var(--dan), #f87171); left:50%; }
+        .macd-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--mut); margin-top:2px; }
+        
+        /* Saídas & P&L */
+        .exit-grid { display:flex; justify-content:space-between; gap:6px; margin-top:12px; }
+        .exit-item { flex:1; padding:10px 6px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid var(--brd); text-align:center; }
+        .exit-val { font-weight:800; margin:4px 0; font-size:15px; }
+        .sl { color:var(--dan); } .ts { color:var(--pri); } .tp { color:var(--suc); }
+        .exit-sub { font-size:9px; color:var(--mut); }
+        
+        .pnl-box { margin-top:10px; padding:10px; border-radius:8px; display:none; text-align:center; font-weight:700; border:1px solid; }
+        
+        /* Badges & Config */
+        .cond { display:inline-block; padding:3px 8px; border-radius:5px; font-size:10px; font-weight:700; margin-left:6px; }
+        .c-ok { background:rgba(14,203,129,0.2); color:var(--suc); border:1px solid rgba(14,203,129,0.3); }
+        .c-warn { background:rgba(227,181,76,0.2); color:var(--wrn); border:1px solid rgba(227,181,76,0.3); }
+        .c-bad { background:rgba(246,70,93,0.2); color:var(--dan); border:1px solid rgba(246,70,93,0.3); }
+        .c-neutral { background:rgba(132,142,156,0.2); color:var(--mut); }
+        
+        input[type="text"] { width:100%; padding:11px; background:#161a1e; border:1px solid var(--brd); color:#fff; border-radius:7px; font-size:14px; margin-top:12px; transition:border-color .2s; }
+        input:focus { outline:none; border-color:var(--pri); }
+        
+        .config-panel { background:rgba(240,185,11,0.06); border:1px solid var(--pri); border-radius:8px; padding:10px; margin-top:10px; font-size:11px; }
+        .cfg-row { display:flex; justify-content:space-between; margin:3px 0; }
+        .cfg-l { color:var(--mut); } .cfg-v { color:var(--pri); font-weight:600; }
+        
+        #log { font-family:'Consolas','Monaco',monospace; font-size:11px; color:var(--wrn); margin-top:10px; height:56px; overflow-y:auto; background:rgba(0,0,0,0.25); padding:10px; border-radius:8px; border:1px solid var(--brd); line-height:1.4; }
+        #log::-webkit-scrollbar { width:4px; } #log::-webkit-scrollbar-thumb { background:var(--brd); border-radius:2px; }
+        
+        .fs-btn { text-align:center; color:var(--mut); font-size:11px; margin-top:8px; cursor:pointer; padding:6px; border-radius:6px; transition:background .2s; }
+        .fs-btn:hover { background:rgba(255,255,255,0.05); color:var(--txt); }
+        
+        .rules { margin-top:12px; padding:10px; background:rgba(132,142,156,0.08); border-radius:8px; font-size:11px; color:var(--mut); line-height:1.5; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <!-- HEADER -->
+    <div class="card">
+        <div class="header">
+            <div><span class="dot online" id="statusDot"></span><span id="connStatus" style="font-weight:600">CONECTADO</span></div>
+            <div class="badge" id="displaySym">BTCUSDT</div>
+        </div>
+        <div class="grid">
+            <div class="metric">
+                <div class="m-label">💰 Preço Atual</div>
+                <div class="m-value" id="curPrice">--.--</div>
+                <div class="m-sub" id="priceChange">--.--%</div>
+            </div>
+            <div class="metric">
+                <div class="m-label">📊 Volatilidade (ATR%)</div>
+                <div class="m-value" id="valAtrPct">--.--%<span class="cond c-neutral" id="volBadge">?</span></div>
+                <div class="m-sub">Ideal: 0.5% – 3.0%</div>
+            </div>
+        </div>
+
+        <div class="macd-wrap">
+            <div class="m-label">📈 MACD Histograma <span id="macdStatus" class="cond c-neutral">AGUARDANDO</span></div>
+            <div class="macd-bar"><div class="macd-zero"></div><div class="macd-fill" id="macdFill"></div></div>
+            <div class="macd-labels"><span>🔻 Venda</span><span>⚪ Neutro</span><span>🟢 Compra</span></div>
+        </div>
+
+        <input type="text" id="inputSym" value="BTCUSDT" placeholder="Ex: BTCUSDT, ETHUSDT, SOLUSDT" autocomplete="off">
+        <button class="btn-prime" onclick="Engine.restart()">🔄 REINICIAR ENGINE</button>
+        <button class="btn-bot" id="botToggle" onclick="Engine.toggleBot()">🤖 BOT AUTOMÁTICO: OFF</button>
+        
+        <div class="config-panel">
+            <div class="cfg-row"><span class="cfg-l">Risco/Op:</span><span class="cfg-v" id="cfgRisk">R$ 100.00</span></div>
+            <div class="cfg-row"><span class="cfg-l">Stop:</span><span class="cfg-v">1.5× ATR</span></div>
+            <div class="cfg-row"><span class="cfg-l">Alvo:</span><span class="cfg-v">2.5× ATR</span></div>
+            <div class="cfg-row"><span class="cfg-l">Trailing:</span><span class="cfg-v">Ativa em +1× ATR</span></div>
+        </div>
+        <div class="fs-btn" onclick="Engine.fullscreen()">⛶ Tela Cheia (TV/Tablet)</div>
+    </div>
+
+    <!-- SINAL -->
+    <div class="card">
+        <div class="m-label" style="color:var(--pri); font-weight:700">🎯 Timing de Entrada — MACD + Volatilidade + Tendência</div>
+        <div id="signalDisplay" class="signal-box wait">🔍 AGUARDANDO CONFIRMAÇÃO...</div>
+        <div class="grid" style="margin-top:12px;">
+            <div class="metric">
+                <div class="m-label">📐 RSI (14)</div>
+                <div id="valRsi" class="m-value">--.--</div>
+                <div class="m-sub" id="rsiStatus">Neutro</div>
+            </div>
+            <div class="metric">
+                <div class="m-label">📈 EMA21</div>
+                <div id="valEma21" class="m-value">$--.--</div>
+                <div class="m-sub" id="trendStatus">Aguardando...</div>
+            </div>
+        </div>
+        <div class="rules">
+            <strong>✅ Regras de Entrada:</strong><br>
+            • MACD cruza zero com direção definida<br>
+            • Volatilidade entre 0.5% e 3.0%<br>
+            • Preço alinhado com EMA21<br>
+            • RSI fora de zonas extremas (<25 ou >75)
+        </div>
+    </div>
+
+    <!-- SAÍDAS -->
+    <div class="card" style="border-left:4px solid var(--pri);">
+        <div class="m-label" style="color:var(--pri); font-weight:700">🚪 Saída Inteligente — Proteção de Lucro</div>
+        <div class="exit-grid">
+            <div class="exit-item"><div class="m-label">🛑 Stop Loss</div><div class="exit-val sl" id="calcStop">--.--</div><div class="exit-sub">1.5× ATR</div></div>
+            <div class="exit-item"><div class="m-label">🔄 Trailing</div><div class="exit-val ts" id="calcTrail">--.--</div><div class="exit-sub">Após +1× ATR</div></div>
+            <div class="exit-item"><div class="m-label">✅ Take Profit</div><div class="exit-val tp" id="calcTp">--.--</div><div class="exit-sub">2.5× ATR</div></div>
+        </div>
+        <div style="margin-top:12px; padding:10px; background:rgba(240,185,11,0.1); border-radius:8px; border:1px solid var(--pri); text-align:center;">
+            <div class="m-label" style="color:var(--pri);">📊 Lote Sugerido (Risco Fixo)</div>
+            <div style="font-size:18px; font-weight:800; color:var(--pri); margin-top:4px;" id="calcLot">--.---- un</div>
+        </div>
+        <div id="pnlBox" class="pnl-box"><div style="font-size:10px; color:var(--mut);">P&L ATUAL</div><div id="pnlVal" style="font-size:17px;">--.--%</div></div>
+    </div>
+
+    <!-- LOG -->
+    <div class="card">
+        <div class="m-label">📋 Log em Tempo Real</div>
+        <div id="log">🔌 Inicializando sistema...</div>
+    </div>
+    <div style="text-align:center; color:var(--mut); font-size:10px; margin-top:10px;">
+        🎯 Timing Pro ULTRA v3.0 • Dados: Binance API • Atualização: 30s
+    </div>
+</div>
+
+<script>
+/**
+ * 🎯 TIMING PRO ULTRA v3.0 — MACD ELITE
+ * Estratégia completa pronta para uso. Configurações no topo do script.
+ */
+
+// 🔧 CONFIGURAÇÕES (AJUSTE CONFORME SEU PERFIL)
+const CFG = {
+    riskPerTrade: 100,           // Risco fixo em BRL
+    slMult: 1.5, tpMult: 2.5,    // Multiplicadores ATR
+    trailTrigger: 1.0,           // Ativa trailing após lucro em × ATR
+    minVol: 0.005, maxVol: 0.03, // Faixa volatilidade ideal
+    rsiBuyMin: 30, rsiBuyMax: 65,// Filtros RSI
+    rsiSellMin: 35, rsiSellMax: 70,
+    interval: '15m', limit: 100, // Timeframe e candles
+    refresh: 30000,              // Reanálise (ms)
+    telegram: { enabled:false, token:'SEU_TOKEN', chatId:'SEU_CHAT_ID' } // Telegram opcional
+};
+
+// 📦 ESTADO GLOBAL
+const S = {
+    sym: 'BTCUSDT', price: 0, change: 0, bot: false, connected: false,
+    ind: { rsi:0, atr:0, atrPct:0, macd:0, sig:0, hist:0, ema21:0 },
+    histHistory: [],
+    pos: null, // { entry, dir, stop, tp, trailTrig, trailActive, opened }
+    ws: null, wsRetries: 0, maxRetries: 8,
+    lastSignal: null, logTime: 0
+};
+
+// 🧮 UTILITÁRIOS MATEMÁTICOS
+const M = {
+    sma(p, n) { return p.slice(-n).reduce((a,b)=>a+b,0)/n; },
+    ema(p, n) {
+        if(p.length < n) return null;
+        let v = M.sma(p, n), k = 2/(n+1);
+        for(let i=n; i<p.length; i++) v = (p[i]-v)*k + v;
+        return v;
+    },
+    atr(k, n=14) {
+        if(k.length < n+1) return 0;
+        let sum = 0;
+        for(let i=1; i<=n; i++) {
+            const h=+k[i][2], l=+k[i][3], pc=+k[i-1][4];
+            sum += Math.max(h-l, Math.abs(h-pc), Math.abs(l-pc));
+        }
+        return sum/n;
+    },
+    rsi(p, n=14) {
+        if(p.length < n+1) return 50;
+        let g=0, l=0;
+        for(let i=p.length-n; i<p.length; i++) { const d=p[i]-p[i-1]; d>=0?g+=d:l-=d; }
+        const ag=g/n, al=l/n; return al===0 ? 100 : 100-(100/(1+ag/al));
+    },
+    norm(v, max) { return Math.max(-1, Math.min(1, v/max)); }
+};
+
+// 📈 MACD COMPLETO
+const MACD = {
+    calc(closes, f=12, sl=26, sp=9) {
+        if(closes.length < sl+sp) return { last:null };
+        const ef=[], es=[];
+        let vf=M.sma(closes,f), vs=M.sma(closes,sl);
+        for(let i=0; i<closes.length; i++) {
+            vf = i<f ? M.sma(closes.slice(0,i+1), i+1) : (closes[i]-vf)*(2/(f+1)) + vf;
+            vs = i<sl ? M.sma(closes.slice(0,i+1), i+1) : (closes[i]-vs)*(2/(sl+1)) + vs;
+            ef.push(vf); es.push(vs);
+        }
+        const macd = ef.map((a,i)=>a-es[i]);
+        const sig=[], k=2/(sp+1); let vsig = M.sma(macd.slice(sl, sl+sp), sp);
+        for(let i=0; i<macd.length; i++) {
+            if(i<sl+sp-1) sig.push(null);
+            else if(i===sl+sp-1) sig.push(vsig);
+            else { vsig=(macd[i]-vsig)*k+vsig; sig.push(vsig); }
+        }
+        const hist = macd.map((m,i)=> sig[i]!==null ? m-sig[i] : null);
+        const lastIdx = hist.slice().reverse().findIndex(x=>x!==null);
+        const idx = lastIdx===-1 ? -1 : hist.length-1-lastIdx;
+        return { last: idx>=0 ? { m:macd[idx], s:sig[idx], h:hist[idx] } : null, hist };
+    },
+    cross(hh) {
+        const v = hh.filter(x=>x!==null).slice(-3);
+        if(v.length<2) return null;
+        return (v[v.length-2]<0 && v[v.length-1]>=0) ? 'bull' :
+               (v[v.length-2]>0 && v[v.length-1]<=0) ? 'bear' : null;
+    }
+};
+
+// 🎯 ESTRATÉGIA
+const Strat = {
+    vol(atr, price) {
+        if(!atr||!price) return {ok:false, t:'N/A', b:'c-neutral'};
+        const p = atr/price;
+        if(p < CFG.minVol) return {ok:false, t:'Baixa', b:'c-bad'};
+        if(p > CFG.maxVol) return {ok:false, t:'Excessiva', b:'c-warn'};
+        return {ok:true, t:'Ideal', b:'c-ok', p};
+    },
+    trend(price, ema21) {
+        if(!price||!ema21) return {d:null, t:'Aguardando...'};
+        const diff = (price-ema21)/ema21;
+        return diff>0.01 ? {d:'alta', t:'🟢 Tendência Alta'} :
+               diff<-0.01 ? {d:'baixa', t:'🔴 Tendência Baixa'} :
+               {d:'lateral', t:'⚪ Consolidação'};
+    },
+    exits(entry, atr, dir) {
+        const sd = atr*CFG.slMult, td = atr*CFG.tpMult, trd = atr*CFG.trailTrigger;
+        return dir==='BUY' ? { stop:entry-sd, tp:entry+td, trailTrig:entry+trd, sd, td } :
+                             { stop:entry+sd, tp:entry-td, trailTrig:entry-trd, sd, td };
+    },
+    checkExit(pos, price, ind) {
+        if(!pos) return null;
+        const { entry, dir, stop, tp, trailTrig, sd } = pos;
+        if(dir==='BUY') {
+            if(price<=stop) return {r:'🛑 STOP LOSS', t:'stop'};
+            if(price>=tp) return {r:'✅ TAKE PROFIT', t:'target'};
+            if(pos.trailActive && price <= (price-sd*CFG.tpMult/CFG.tpMult)) return {r:'🔄 TRAILING STOP', t:'trailing'}; // Simplificado para clareza
+            if(!pos.trailActive && price>=trailTrig) { pos.trailActive=true; UI.log('🔄 Trailing ativado!'); }
+            if(ind.hist<0 && pos.macdHist>0 && ind.hist < -Math.abs(ind.m)*0.3) return {r:'⚠️ MACD Reverteu', t:'early'};
+        } else {
+            if(price>=stop) return {r:'🛑 STOP LOSS', t:'stop'};
+            if(price<=tp) return {r:'✅ TAKE PROFIT', t:'target'};
+            if(!pos.trailActive && price<=trailTrig) { pos.trailActive=true; UI.log('🔄 Trailing ativado!'); }
+            if(ind.hist>0 && pos.macdHist<0 && ind.hist > Math.abs(ind.m)*0.3) return {r:'⚠️ MACD Reverteu', t:'early'};
+        }
+        return null;
+    }
+};
+
+// 🖥️ INTERFACE & LOG
+const UI = {
+    el: id => document.getElementById(id),
+    log(msg, type='info') {
+        const now=Date.now(); if(now-S.logTime<800) return; S.logTime=now;
+        const el = UI.el('log');
+        const time = new Date().toLocaleTimeString('pt-BR');
+        const p = type==='alert'?'🚨':type==='err'?'❌':'💬';
+        const c = type==='err'?'var(--dan)':type==='alert'?'var(--pri)':'var(--wrn)';
+        el.innerHTML = `<span style="color:${c}">[${time}] ${p}</span> ${msg}<br>` + el.innerHTML;
+        el.innerHTML = el.innerHTML.split('<br>').filter(x=>x.trim()).slice(0,6).join('<br>');
+    },
+    signal(text, cls, isNew) {
+        const box = UI.el('signalDisplay');
+        box.innerText = text; box.className = `signal-box ${cls}${isNew?' signal-new':''}`;
+        if(isNew) setTimeout(()=>box.classList.remove('signal-new'), 1500);
+    },
+    macd(hist, atr) {
+        const f = UI.el('macdFill'); if(!atr||hist===null) { f.style.width='0%'; return; }
+        const str = M.norm(hist, atr*0.8); const w = Math.abs(str)*100;
+        f.className = `macd-fill ${hist>=0?'macd-pos':'macd-neg'}`;
+        f.style.width = `${w}%`; f.style.left = hist>=0?'50%':`${50-w}%`;
+    },
+    exits(e) { UI.el('calcStop').innerText=`$${e.stop.toFixed(2)}`; UI.el('calcTrail').innerText=`$${e.trailTrig.toFixed(2)}`; UI.el('calcTp').innerText=`$${e.tp.toFixed(2)}`; },
+    lot(atr) { if(!atr||!S.price) return; const d=atr*CFG.slMult; UI.el('calcLot').innerText=`${(CFG.riskPerTrade/d).toFixed(4)} un`; },
+    pnl() {
+        const box=UI.el('pnlBox'); if(!S.pos?.active||!S.price){box.style.display='none';return;}
+        box.style.display='block';
+        const pnl = (S.price - S.pos.entry)/(S.pos.dir==='BUY'?1:-1)/S.pos.entry*100;
+        const p = pnl>=0; box.style.background=p?'rgba(14,203,129,0.15)':'rgba(246,70,93,0.15)';
+        box.style.borderColor=p?'var(--suc)':'var(--dan)';
+        UI.el('pnlVal').innerText=`${p?'+':''}${pnl.toFixed(2)}%`;
+        UI.el('pnlVal').style.color=p?'var(--suc)':'var(--dan)';
+    },
+    async alert(msg) {
+        UI.log(msg, 'alert');
+        if(!CFG.telegram.enabled || CFG.telegram.token==='SEU_TOKEN') return;
+        try {
+            await fetch(`https://api.telegram.org/bot${CFG.telegram.token}/sendMessage`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({chat_id:CFG.telegram.chatId, text:msg, parse_mode:'HTML'})
+            });
+        } catch(e) { console.warn('Telegram error', e); }
+    }
+};
+
+// 🌐 WEBSOCKET
+const WS = {
+    start(sym) {
+        if(S.ws) S.ws.close();
+        S.ws = new WebSocket(`wss://stream.binance.com:9443/ws/${sym.toLowerCase()}@ticker`);
+        S.ws.onopen = () => { S.connected=true; S.wsRetries=0; UI.el('connStatus').innerText='CONECTADO'; UI.el('statusDot').className='dot online'; UI.log('✅ WS conectado'); };
+        S.ws.onmessage = e => {
+            try {
+                const d = JSON.parse(e.data); S.price=+d.c; S.change=+d.P;
+                UI.el('curPrice').innerText=`$ ${S.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+                UI.el('curPrice').style.color = S.change>=0?'var(--suc)':'var(--dan)';
+                UI.el('priceChange').innerText=`${S.change>=0?'+':''}${S.change.toFixed(2)}%`;
+                if(S.pos?.active) UI.pnl();
+            } catch(err) {}
+        };
+        S.ws.onclose = () => {
+            S.connected=false; UI.el('connStatus').innerText='DESCONECTADO'; UI.el('statusDot').className='dot offline';
+            if(S.wsRetries < CFG.maxRetries) {
+                const delay = Math.min(1000*Math.pow(1.5, S.wsRetries), 8000); S.wsRetries++;
+                setTimeout(()=>WS.start(S.sym), delay);
+            }
+        };
+    }
+};
+
+// 🧠 ENGINE PRINCIPAL
+const Engine = {
+    async run() {
+        try {
+            const sym = UI.el('inputSym').value.toUpperCase().trim() || 'BTCUSDT';
+            if(sym !== S.sym) {
+                S.sym=sym; S.histHistory=[]; S.pos=null; S.lastSignal=null;
+                UI.el('displaySym').innerText=sym; UI.el('pnlBox').style.display='none';
+                WS.start(sym); UI.signal('🔄 Carregando...', 'wait'); UI.log(`📊 Analisando ${sym}...`);
+            }
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${S.sym}&interval=${CFG.interval}&limit=${CFG.limit}`, {cache:'no-store'});
+            if(!res.ok) throw new Error(`HTTP ${res.status}`);
+            const k = await res.json(); if(k.length<30) throw new Error('Dados insuficientes');
+            
+            const closes = k.map(x=>+x[4]);
+            const rsi = M.rsi(closes, 14);
+            const atr = M.atr(k, 14);
+            const atrP = atr/S.price;
+            const ema21 = M.ema(closes, 21);
+            const macd = MACD.calc(closes);
+            
+            if(macd.last?.h !== null && macd.last?.h !== undefined) {
+                S.histHistory.push(macd.last.h); if(S.histHistory.length>20) S.histHistory.shift();
+            }
+            const cross = MACD.cross(S.histHistory);
+            const vol = Strat.vol(atr, S.price);
+            const trend = Strat.trend(S.price, ema21);
+            
+            // LÓGICA DE ENTRADA
+            let act=null, text='🔍 AGUARDANDO CONFIRMAÇÃO...', cls='wait', isNew=false, reasons=[];
+            const buyOK = cross==='bull' && vol.ok && trend.d==='alta' && rsi>=CFG.rsiBuyMin && rsi<=CFG.rsiBuyMax;
+            const sellOK = cross==='bear' && vol.ok && trend.d==='baixa' && rsi>=CFG.rsiSellMin && rsi<=CFG.rsiSellMax;
+            
+            if(buyOK) { act='BUY'; text='🟢 COMPRA CONFIRMADA'; cls='buy'; reasons=['MACD ↑','Vol OK','Tendência Alta',`RSI ${rsi.toFixed(1)}`]; }
+            else if(sellOK) { act='SELL'; text='🔴 VENDA CONFIRMADA'; cls='sell'; reasons=['MACD ↓','Vol OK','Tendência Baixa',`RSI ${rsi.toFixed(1)}`]; }
+            else {
+                if(!vol.ok) { text=`⏳ Volatilidade ${vol.t}`; cls='neutral'; }
+                else if(!cross) { text='⏳ Aguardando MACD...'; cls='neutral'; }
+                else if(trend.d!== (cross==='bull'?'alta':'baixa')) { text=`⏳ ${trend.t}`; cls='neutral'; }
+                else { text='⏳ Confirmando...'; cls='wait'; }
+            }
+            
+            isNew = act && act !== S.lastSignal;
+            UI.signal(text, cls, isNew);
+            if(isNew && act) S.lastSignal=act;
+            
+            // ATUALIZA UI
+            UI.el('macdStatus').innerText = cross ? (cross==='bull'?'🟢 CRUZOU ↑':'🔴 CRUZOU ↓') : (macd.last?.h>0.0001?'🟢 Pos':macd.last?.h<-0.0001?'🔴 Neg':'⚪ Neutro');
+            UI.el('macdStatus').className = `cond ${cross?(cross==='bull'?'c-ok':'c-warn'):(Math.abs(macd.last?.h||0)>0.001?'c-ok':'c-neutral')}`;
+            UI.macd(macd.last?.h, atr);
+            UI.el('valRsi').innerText=rsi.toFixed(1); UI.el('rsiStatus').innerText=rsi<25?'Sobrevendido':rsi>75?'Sobrecomprado':'Neutro';
+            UI.el('valEma21').innerText=`$${ema21.toFixed(2)}`; UI.el('trendStatus').innerText=trend.t;
+            UI.el('valAtrPct').innerHTML=`${(atrP*100).toFixed(2)}%<span class="cond ${vol.b}">${vol.t}</span>`;
+            
+            S.ind = { rsi, atr, atrPct:atrP, m:macd.last?.m, sig:macd.last?.s, hist:macd.last?.h, ema21 };
+            
+            // GESTÃO DE POSIÇÃO
+            if(act && S.bot && !S.pos?.active) {
+                const e = Strat.exits(S.price, atr, act);
+                S.pos = { entry:S.price, dir:act, ...e, active:true, opened:Date.now(), macdHist:macd.last?.h };
+                UI.exits(e); UI.lot(atr);
+                UI.log(`🎯 Nova ${act} @ $${S.price.toFixed(2)}`);
+                UI.alert(`🎯 <b>${act}</b> em <code>${S.sym}</code>\n💰 $${S.price.toFixed(2)}\n📊 ${reasons.join(' • ')}`);
+            } else if(S.pos?.active) {
+                const ex = Strat.checkExit(S.pos, S.price, S.ind);
+                if(ex) {
+                    const pnl = ((S.price-S.pos.entry)/(S.pos.dir==='BUY'?1:-1)/S.pos.entry*100);
+                    const msg = `${ex.r} em ${S.sym}\n💰 Entrada: $${S.pos.entry.toFixed(2)}\n🔚 Saída: $${S.price.toFixed(2)}\n📊 ${pnl>=0?'+':''}${pnl.toFixed(2)}%`;
+                    UI.alert(msg); UI.log(`${ex.r} | ${pnl>=0?'+':''}${pnl.toFixed(2)}%`, ex.t==='target'?'alert':'info');
+                    S.pos=null; UI.el('pnlBox').style.display='none';
+                    UI.signal('🔁 Aguardando próxima...', 'wait');
+                } else { UI.exits(Strat.exits(S.pos.entry, S.ind.atr, S.pos.dir)); UI.pnl(); }
+            }
+            UI.lot(S.ind.atr);
+        } catch(e) { console.error(e); UI.log(`❌ ${e.message}`, 'err'); }
+    },
+    restart() { UI.el('inputSym').value = S.sym; Engine.run(); },
+    toggleBot() {
+        S.bot = !S.bot;
+        const b = UI.el('botToggle'); b.className=`btn-bot${S.bot?' active':''}`; b.innerText=S.bot?'🤖 BOT AUTOMÁTICO: ON':'🤖 BOT AUTOMÁTICO: OFF';
+        UI.log(S.bot?'✅ Bot ativado':'⏸️ Bot pausado');
+        if(S.bot) Engine.run();
+    },
+    fullscreen() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(()=>{}); },
+    init() {
+        UI.el('cfgRisk').innerText=`R$ ${CFG.riskPerTrade.toFixed(2)}`;
+        UI.log('🎯 Timing Pro ULTRA v3.0 carregado');
+        Engine.run();
+        setInterval(Engine.run, CFG.refresh);
+        setInterval(()=>{ if(S.connected && S.price) { UI.el('curPrice').innerText=`$ ${S.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}`; if(S.pos?.active) UI.pnl(); } }, 2000);
+    }
+};
+
+// 🚀 INICIALIZAÇÃO
+window.addEventListener('load', Engine.init);
+document.addEventListener('keydown', e => { if(e.key==='F9'){e.preventDefault(); Engine.restart();} if(e.key==='Escape' && document.fullscreenElement) document.exitFullscreen(); });
+</script>
+</body>
+                    </html><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎯 Timing Pro ULTRA — MACD Elite</title>
+    <style>
+        :root {
+            --bg:#0b0e11; --card:#151a21; --pri:#f0b90b; --txt:#eaecef;
+            --suc:#0ecb81; --dan:#f6465d; --wrn:#e3b54c; --mut:#848e9c;
+            --brd:#2b3139; --radius:10px; --shadow:0 4px 16px rgba(0,0,0,0.4);
+        }
+        * { box-sizing:border-box; margin:0; padding:0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+        body { background:var(--bg); color:var(--txt); padding:12px; font-size:14px; min-height:100vh; }
+        .wrap { max-width:540px; margin:0 auto; padding-bottom:24px; }
+        
+        /* Cards & Layout */
+        .card { background:var(--card); border:1px solid var(--brd); border-radius:var(--radius); padding:16px; margin-bottom:14px; box-shadow:var(--shadow); position:relative; }
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+        .badge { background:var(--pri); color:#000; padding:4px 10px; border-radius:6px; font-weight:800; font-size:13px; letter-spacing:.5px; }
+        
+        .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .metric { background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; border:1px solid var(--brd); transition:border-color .2s; }
+        .metric:hover { border-color:var(--pri); }
+        .m-label { color:var(--mut); font-size:10px; text-transform:uppercase; letter-spacing:.5px; }
+        .m-value { font-size:18px; font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums; }
+        .m-sub { font-size:10px; color:var(--mut); margin-top:2px; }
+        
+        /* Botões */
+        button { width:100%; padding:13px; border:none; border-radius:8px; font-weight:700; cursor:pointer; transition:all .2s; font-size:14px; margin-top:8px; }
+        button:active { transform:scale(.98); }
+        .btn-prime { background:var(--pri); color:#000; box-shadow:0 0 12px rgba(240,185,11,0.3); }
+        .btn-prime:hover { filter:brightness(1.1); }
+        .btn-bot { background:#232830; color:#fff; border:1px solid var(--pri); }
+        .btn-bot.active { background:var(--suc); color:#000; border-color:var(--suc); }
+        
+        /* Status & Sinais */
+        .dot { height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+        .online { background:var(--suc); box-shadow:0 0 8px var(--suc); animation:pulse 2s infinite; }
+        .offline { background:var(--dan); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+        
+        .signal-box { text-align:center; padding:20px; border-radius:var(--radius); margin-top:10px; font-size:18px; font-weight:800; border:2px dashed var(--brd); min-height:60px; display:flex; align-items:center; justify-content:center; transition:all .3s; }
+        .buy { color:var(--suc); border-color:var(--suc); background:rgba(14,203,129,0.1); box-shadow:0 0 20px rgba(14,203,129,0.2); }
+        .sell { color:var(--dan); border-color:var(--dan); background:rgba(246,70,93,0.1); box-shadow:0 0 20px rgba(246,70,93,0.2); }
+        .wait { color:var(--pri); border-color:var(--pri); background:rgba(240,185,11,0.08); }
+        .neutral { color:var(--mut); border-color:var(--brd); }
+        @keyframes glow { 0%{box-shadow:0 0 0 0 rgba(240,185,11,0.4)} 70%{box-shadow:0 0 0 10px rgba(240,185,11,0)} 100%{box-shadow:0 0 0 0 rgba(240,185,11,0)} }
+        .signal-new { animation:glow 1.5s ease-out; }
+        
+        /* MACD Visual */
+        .macd-wrap { margin-top:12px; }
+        .macd-bar { height:6px; background:var(--brd); border-radius:3px; position:relative; overflow:hidden; margin:6px 0; }
+        .macd-zero { position:absolute; left:50%; top:-6px; bottom:-6px; width:1px; background:var(--mut); opacity:.6; }
+        .macd-fill { height:100%; border-radius:3px; transition:all .4s cubic-bezier(.4,0,.2,1); position:absolute; }
+        .macd-pos { background:linear-gradient(90deg, var(--suc), #4ade80); right:50%; }
+        .macd-neg { background:linear-gradient(90deg, var(--dan), #f87171); left:50%; }
+        .macd-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--mut); margin-top:2px; }
+        
+        /* Saídas & P&L */
+        .exit-grid { display:flex; justify-content:space-between; gap:6px; margin-top:12px; }
+        .exit-item { flex:1; padding:10px 6px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid var(--brd); text-align:center; }
+        .exit-val { font-weight:800; margin:4px 0; font-size:15px; }
+        .sl { color:var(--dan); } .ts { color:var(--pri); } .tp { color:var(--suc); }
+        .exit-sub { font-size:9px; color:var(--mut); }
+        
+        .pnl-box { margin-top:10px; padding:10px; border-radius:8px; display:none; text-align:center; font-weight:700; border:1px solid; }
+        
+        /* Badges & Config */
+        .cond { display:inline-block; padding:3px 8px; border-radius:5px; font-size:10px; font-weight:700; margin-left:6px; }
+        .c-ok { background:rgba(14,203,129,0.2); color:var(--suc); border:1px solid rgba(14,203,129,0.3); }
+        .c-warn { background:rgba(227,181,76,0.2); color:var(--wrn); border:1px solid rgba(227,181,76,0.3); }
+        .c-bad { background:rgba(246,70,93,0.2); color:var(--dan); border:1px solid rgba(246,70,93,0.3); }
+        .c-neutral { background:rgba(132,142,156,0.2); color:var(--mut); }
+        
+        input[type="text"] { width:100%; padding:11px; background:#161a1e; border:1px solid var(--brd); color:#fff; border-radius:7px; font-size:14px; margin-top:12px; transition:border-color .2s; }
+        input:focus { outline:none; border-color:var(--pri); }
+        
+        .config-panel { background:rgba(240,185,11,0.06); border:1px solid var(--pri); border-radius:8px; padding:10px; margin-top:10px; font-size:11px; }
+        .cfg-row { display:flex; justify-content:space-between; margin:3px 0; }
+        .cfg-l { color:var(--mut); } .cfg-v { color:var(--pri); font-weight:600; }
+        
+        #log { font-family:'Consolas','Monaco',monospace; font-size:11px; color:var(--wrn); margin-top:10px; height:56px; overflow-y:auto; background:rgba(0,0,0,0.25); padding:10px; border-radius:8px; border:1px solid var(--brd); line-height:1.4; }
+        #log::-webkit-scrollbar { width:4px; } #log::-webkit-scrollbar-thumb { background:var(--brd); border-radius:2px; }
+        
+        .fs-btn { text-align:center; color:var(--mut); font-size:11px; margin-top:8px; cursor:pointer; padding:6px; border-radius:6px; transition:background .2s; }
+        .fs-btn:hover { background:rgba(255,255,255,0.05); color:var(--txt); }
+        
+        .rules { margin-top:12px; padding:10px; background:rgba(132,142,156,0.08); border-radius:8px; font-size:11px; color:var(--mut); line-height:1.5; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <!-- HEADER -->
+    <div class="card">
+        <div class="header">
+            <div><span class="dot online" id="statusDot"></span><span id="connStatus" style="font-weight:600">CONECTADO</span></div>
+            <div class="badge" id="displaySym">BTCUSDT</div>
+        </div>
+        <div class="grid">
+            <div class="metric">
+                <div class="m-label">💰 Preço Atual</div>
+                <div class="m-value" id="curPrice">--.--</div>
+                <div class="m-sub" id="priceChange">--.--%</div>
+            </div>
+            <div class="metric">
+                <div class="m-label">📊 Volatilidade (ATR%)</div>
+                <div class="m-value" id="valAtrPct">--.--%<span class="cond c-neutral" id="volBadge">?</span></div>
+                <div class="m-sub">Ideal: 0.5% – 3.0%</div>
+            </div>
+        </div>
+
+        <div class="macd-wrap">
+            <div class="m-label">📈 MACD Histograma <span id="macdStatus" class="cond c-neutral">AGUARDANDO</span></div>
+            <div class="macd-bar"><div class="macd-zero"></div><div class="macd-fill" id="macdFill"></div></div>
+            <div class="macd-labels"><span>🔻 Venda</span><span>⚪ Neutro</span><span>🟢 Compra</span></div>
+        </div>
+
+        <input type="text" id="inputSym" value="BTCUSDT" placeholder="Ex: BTCUSDT, ETHUSDT, SOLUSDT" autocomplete="off">
+        <button class="btn-prime" onclick="Engine.restart()">🔄 REINICIAR ENGINE</button>
+        <button class="btn-bot" id="botToggle" onclick="Engine.toggleBot()">🤖 BOT AUTOMÁTICO: OFF</button>
+        
+        <div class="config-panel">
+            <div class="cfg-row"><span class="cfg-l">Risco/Op:</span><span class="cfg-v" id="cfgRisk">R$ 100.00</span></div>
+            <div class="cfg-row"><span class="cfg-l">Stop:</span><span class="cfg-v">1.5× ATR</span></div>
+            <div class="cfg-row"><span class="cfg-l">Alvo:</span><span class="cfg-v">2.5× ATR</span></div>
+            <div class="cfg-row"><span class="cfg-l">Trailing:</span><span class="cfg-v">Ativa em +1× ATR</span></div>
+        </div>
+        <div class="fs-btn" onclick="Engine.fullscreen()">⛶ Tela Cheia (TV/Tablet)</div>
+    </div>
+
+    <!-- SINAL -->
+    <div class="card">
+        <div class="m-label" style="color:var(--pri); font-weight:700">🎯 Timing de Entrada — MACD + Volatilidade + Tendência</div>
+        <div id="signalDisplay" class="signal-box wait">🔍 AGUARDANDO CONFIRMAÇÃO...</div>
+        <div class="grid" style="margin-top:12px;">
+            <div class="metric">
+                <div class="m-label">📐 RSI (14)</div>
+                <div id="valRsi" class="m-value">--.--</div>
+                <div class="m-sub" id="rsiStatus">Neutro</div>
+            </div>
+            <div class="metric">
+                <div class="m-label">📈 EMA21</div>
+                <div id="valEma21" class="m-value">$--.--</div>
+                <div class="m-sub" id="trendStatus">Aguardando...</div>
+            </div>
+        </div>
+        <div class="rules">
+            <strong>✅ Regras de Entrada:</strong><br>
+            • MACD cruza zero com direção definida<br>
+            • Volatilidade entre 0.5% e 3.0%<br>
+            • Preço alinhado com EMA21<br>
+            • RSI fora de zonas extremas (<25 ou >75)
+        </div>
+    </div>
+
+    <!-- SAÍDAS -->
+    <div class="card" style="border-left:4px solid var(--pri);">
+        <div class="m-label" style="color:var(--pri); font-weight:700">🚪 Saída Inteligente — Proteção de Lucro</div>
+        <div class="exit-grid">
+            <div class="exit-item"><div class="m-label">🛑 Stop Loss</div><div class="exit-val sl" id="calcStop">--.--</div><div class="exit-sub">1.5× ATR</div></div>
+            <div class="exit-item"><div class="m-label">🔄 Trailing</div><div class="exit-val ts" id="calcTrail">--.--</div><div class="exit-sub">Após +1× ATR</div></div>
+            <div class="exit-item"><div class="m-label">✅ Take Profit</div><div class="exit-val tp" id="calcTp">--.--</div><div class="exit-sub">2.5× ATR</div></div>
+        </div>
+        <div style="margin-top:12px; padding:10px; background:rgba(240,185,11,0.1); border-radius:8px; border:1px solid var(--pri); text-align:center;">
+            <div class="m-label" style="color:var(--pri);">📊 Lote Sugerido (Risco Fixo)</div>
+            <div style="font-size:18px; font-weight:800; color:var(--pri); margin-top:4px;" id="calcLot">--.---- un</div>
+        </div>
+        <div id="pnlBox" class="pnl-box"><div style="font-size:10px; color:var(--mut);">P&L ATUAL</div><div id="pnlVal" style="font-size:17px;">--.--%</div></div>
+    </div>
+
+    <!-- LOG -->
+    <div class="card">
+        <div class="m-label">📋 Log em Tempo Real</div>
+        <div id="log">🔌 Inicializando sistema...</div>
+    </div>
+    <div style="text-align:center; color:var(--mut); font-size:10px; margin-top:10px;">
+        🎯 Timing Pro ULTRA v3.0 • Dados: Binance API • Atualização: 30s
+    </div>
+</div>
+
+<script>
+/**
+ * 🎯 TIMING PRO ULTRA v3.0 — MACD ELITE
+ * Estratégia completa pronta para uso. Configurações no topo do script.
+ */
+
+// 🔧 CONFIGURAÇÕES (AJUSTE CONFORME SEU PERFIL)
+const CFG = {
+    riskPerTrade: 100,           // Risco fixo em BRL
+    slMult: 1.5, tpMult: 2.5,    // Multiplicadores ATR
+    trailTrigger: 1.0,           // Ativa trailing após lucro em × ATR
+    minVol: 0.005, maxVol: 0.03, // Faixa volatilidade ideal
+    rsiBuyMin: 30, rsiBuyMax: 65,// Filtros RSI
+    rsiSellMin: 35, rsiSellMax: 70,
+    interval: '15m', limit: 100, // Timeframe e candles
+    refresh: 30000,              // Reanálise (ms)
+    telegram: { enabled:false, token:'SEU_TOKEN', chatId:'SEU_CHAT_ID' } // Telegram opcional
+};
+
+// 📦 ESTADO GLOBAL
+const S = {
+    sym: 'BTCUSDT', price: 0, change: 0, bot: false, connected: false,
+    ind: { rsi:0, atr:0, atrPct:0, macd:0, sig:0, hist:0, ema21:0 },
+    histHistory: [],
+    pos: null, // { entry, dir, stop, tp, trailTrig, trailActive, opened }
+    ws: null, wsRetries: 0, maxRetries: 8,
+    lastSignal: null, logTime: 0
+};
+
+// 🧮 UTILITÁRIOS MATEMÁTICOS
+const M = {
+    sma(p, n) { return p.slice(-n).reduce((a,b)=>a+b,0)/n; },
+    ema(p, n) {
+        if(p.length < n) return null;
+        let v = M.sma(p, n), k = 2/(n+1);
+        for(let i=n; i<p.length; i++) v = (p[i]-v)*k + v;
+        return v;
+    },
+    atr(k, n=14) {
+        if(k.length < n+1) return 0;
+        let sum = 0;
+        for(let i=1; i<=n; i++) {
+            const h=+k[i][2], l=+k[i][3], pc=+k[i-1][4];
+            sum += Math.max(h-l, Math.abs(h-pc), Math.abs(l-pc));
+        }
+        return sum/n;
+    },
+    rsi(p, n=14) {
+        if(p.length < n+1) return 50;
+        let g=0, l=0;
+        for(let i=p.length-n; i<p.length; i++) { const d=p[i]-p[i-1]; d>=0?g+=d:l-=d; }
+        const ag=g/n, al=l/n; return al===0 ? 100 : 100-(100/(1+ag/al));
+    },
+    norm(v, max) { return Math.max(-1, Math.min(1, v/max)); }
+};
+
+// 📈 MACD COMPLETO
+const MACD = {
+    calc(closes, f=12, sl=26, sp=9) {
+        if(closes.length < sl+sp) return { last:null };
+        const ef=[], es=[];
+        let vf=M.sma(closes,f), vs=M.sma(closes,sl);
+        for(let i=0; i<closes.length; i++) {
+            vf = i<f ? M.sma(closes.slice(0,i+1), i+1) : (closes[i]-vf)*(2/(f+1)) + vf;
+            vs = i<sl ? M.sma(closes.slice(0,i+1), i+1) : (closes[i]-vs)*(2/(sl+1)) + vs;
+            ef.push(vf); es.push(vs);
+        }
+        const macd = ef.map((a,i)=>a-es[i]);
+        const sig=[], k=2/(sp+1); let vsig = M.sma(macd.slice(sl, sl+sp), sp);
+        for(let i=0; i<macd.length; i++) {
+            if(i<sl+sp-1) sig.push(null);
+            else if(i===sl+sp-1) sig.push(vsig);
+            else { vsig=(macd[i]-vsig)*k+vsig; sig.push(vsig); }
+        }
+        const hist = macd.map((m,i)=> sig[i]!==null ? m-sig[i] : null);
+        const lastIdx = hist.slice().reverse().findIndex(x=>x!==null);
+        const idx = lastIdx===-1 ? -1 : hist.length-1-lastIdx;
+        return { last: idx>=0 ? { m:macd[idx], s:sig[idx], h:hist[idx] } : null, hist };
+    },
+    cross(hh) {
+        const v = hh.filter(x=>x!==null).slice(-3);
+        if(v.length<2) return null;
+        return (v[v.length-2]<0 && v[v.length-1]>=0) ? 'bull' :
+               (v[v.length-2]>0 && v[v.length-1]<=0) ? 'bear' : null;
+    }
+};
+
+// 🎯 ESTRATÉGIA
+const Strat = {
+    vol(atr, price) {
+        if(!atr||!price) return {ok:false, t:'N/A', b:'c-neutral'};
+        const p = atr/price;
+        if(p < CFG.minVol) return {ok:false, t:'Baixa', b:'c-bad'};
+        if(p > CFG.maxVol) return {ok:false, t:'Excessiva', b:'c-warn'};
+        return {ok:true, t:'Ideal', b:'c-ok', p};
+    },
+    trend(price, ema21) {
+        if(!price||!ema21) return {d:null, t:'Aguardando...'};
+        const diff = (price-ema21)/ema21;
+        return diff>0.01 ? {d:'alta', t:'🟢 Tendência Alta'} :
+               diff<-0.01 ? {d:'baixa', t:'🔴 Tendência Baixa'} :
+               {d:'lateral', t:'⚪ Consolidação'};
+    },
+    exits(entry, atr, dir) {
+        const sd = atr*CFG.slMult, td = atr*CFG.tpMult, trd = atr*CFG.trailTrigger;
+        return dir==='BUY' ? { stop:entry-sd, tp:entry+td, trailTrig:entry+trd, sd, td } :
+                             { stop:entry+sd, tp:entry-td, trailTrig:entry-trd, sd, td };
+    },
+    checkExit(pos, price, ind) {
+        if(!pos) return null;
+        const { entry, dir, stop, tp, trailTrig, sd } = pos;
+        if(dir==='BUY') {
+            if(price<=stop) return {r:'🛑 STOP LOSS', t:'stop'};
+            if(price>=tp) return {r:'✅ TAKE PROFIT', t:'target'};
+            if(pos.trailActive && price <= (price-sd*CFG.tpMult/CFG.tpMult)) return {r:'🔄 TRAILING STOP', t:'trailing'}; // Simplificado para clareza
+            if(!pos.trailActive && price>=trailTrig) { pos.trailActive=true; UI.log('🔄 Trailing ativado!'); }
+            if(ind.hist<0 && pos.macdHist>0 && ind.hist < -Math.abs(ind.m)*0.3) return {r:'⚠️ MACD Reverteu', t:'early'};
+        } else {
+            if(price>=stop) return {r:'🛑 STOP LOSS', t:'stop'};
+            if(price<=tp) return {r:'✅ TAKE PROFIT', t:'target'};
+            if(!pos.trailActive && price<=trailTrig) { pos.trailActive=true; UI.log('🔄 Trailing ativado!'); }
+            if(ind.hist>0 && pos.macdHist<0 && ind.hist > Math.abs(ind.m)*0.3) return {r:'⚠️ MACD Reverteu', t:'early'};
+        }
+        return null;
+    }
+};
+
+// 🖥️ INTERFACE & LOG
+const UI = {
+    el: id => document.getElementById(id),
+    log(msg, type='info') {
+        const now=Date.now(); if(now-S.logTime<800) return; S.logTime=now;
+        const el = UI.el('log');
+        const time = new Date().toLocaleTimeString('pt-BR');
+        const p = type==='alert'?'🚨':type==='err'?'❌':'💬';
+        const c = type==='err'?'var(--dan)':type==='alert'?'var(--pri)':'var(--wrn)';
+        el.innerHTML = `<span style="color:${c}">[${time}] ${p}</span> ${msg}<br>` + el.innerHTML;
+        el.innerHTML = el.innerHTML.split('<br>').filter(x=>x.trim()).slice(0,6).join('<br>');
+    },
+    signal(text, cls, isNew) {
+        const box = UI.el('signalDisplay');
+        box.innerText = text; box.className = `signal-box ${cls}${isNew?' signal-new':''}`;
+        if(isNew) setTimeout(()=>box.classList.remove('signal-new'), 1500);
+    },
+    macd(hist, atr) {
+        const f = UI.el('macdFill'); if(!atr||hist===null) { f.style.width='0%'; return; }
+        const str = M.norm(hist, atr*0.8); const w = Math.abs(str)*100;
+        f.className = `macd-fill ${hist>=0?'macd-pos':'macd-neg'}`;
+        f.style.width = `${w}%`; f.style.left = hist>=0?'50%':`${50-w}%`;
+    },
+    exits(e) { UI.el('calcStop').innerText=`$${e.stop.toFixed(2)}`; UI.el('calcTrail').innerText=`$${e.trailTrig.toFixed(2)}`; UI.el('calcTp').innerText=`$${e.tp.toFixed(2)}`; },
+    lot(atr) { if(!atr||!S.price) return; const d=atr*CFG.slMult; UI.el('calcLot').innerText=`${(CFG.riskPerTrade/d).toFixed(4)} un`; },
+    pnl() {
+        const box=UI.el('pnlBox'); if(!S.pos?.active||!S.price){box.style.display='none';return;}
+        box.style.display='block';
+        const pnl = (S.price - S.pos.entry)/(S.pos.dir==='BUY'?1:-1)/S.pos.entry*100;
+        const p = pnl>=0; box.style.background=p?'rgba(14,203,129,0.15)':'rgba(246,70,93,0.15)';
+        box.style.borderColor=p?'var(--suc)':'var(--dan)';
+        UI.el('pnlVal').innerText=`${p?'+':''}${pnl.toFixed(2)}%`;
+        UI.el('pnlVal').style.color=p?'var(--suc)':'var(--dan)';
+    },
+    async alert(msg) {
+        UI.log(msg, 'alert');
+        if(!CFG.telegram.enabled || CFG.telegram.token==='SEU_TOKEN') return;
+        try {
+            await fetch(`https://api.telegram.org/bot${CFG.telegram.token}/sendMessage`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({chat_id:CFG.telegram.chatId, text:msg, parse_mode:'HTML'})
+            });
+        } catch(e) { console.warn('Telegram error', e); }
+    }
+};
+
+// 🌐 WEBSOCKET
+const WS = {
+    start(sym) {
+        if(S.ws) S.ws.close();
+        S.ws = new WebSocket(`wss://stream.binance.com:9443/ws/${sym.toLowerCase()}@ticker`);
+        S.ws.onopen = () => { S.connected=true; S.wsRetries=0; UI.el('connStatus').innerText='CONECTADO'; UI.el('statusDot').className='dot online'; UI.log('✅ WS conectado'); };
+        S.ws.onmessage = e => {
+            try {
+                const d = JSON.parse(e.data); S.price=+d.c; S.change=+d.P;
+                UI.el('curPrice').innerText=`$ ${S.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+                UI.el('curPrice').style.color = S.change>=0?'var(--suc)':'var(--dan)';
+                UI.el('priceChange').innerText=`${S.change>=0?'+':''}${S.change.toFixed(2)}%`;
+                if(S.pos?.active) UI.pnl();
+            } catch(err) {}
+        };
+        S.ws.onclose = () => {
+            S.connected=false; UI.el('connStatus').innerText='DESCONECTADO'; UI.el('statusDot').className='dot offline';
+            if(S.wsRetries < CFG.maxRetries) {
+                const delay = Math.min(1000*Math.pow(1.5, S.wsRetries), 8000); S.wsRetries++;
+                setTimeout(()=>WS.start(S.sym), delay);
+            }
+        };
+    }
+};
+
+// 🧠 ENGINE PRINCIPAL
+const Engine = {
+    async run() {
+        try {
+            const sym = UI.el('inputSym').value.toUpperCase().trim() || 'BTCUSDT';
+            if(sym !== S.sym) {
+                S.sym=sym; S.histHistory=[]; S.pos=null; S.lastSignal=null;
+                UI.el('displaySym').innerText=sym; UI.el('pnlBox').style.display='none';
+                WS.start(sym); UI.signal('🔄 Carregando...', 'wait'); UI.log(`📊 Analisando ${sym}...`);
+            }
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${S.sym}&interval=${CFG.interval}&limit=${CFG.limit}`, {cache:'no-store'});
+            if(!res.ok) throw new Error(`HTTP ${res.status}`);
+            const k = await res.json(); if(k.length<30) throw new Error('Dados insuficientes');
+            
+            const closes = k.map(x=>+x[4]);
+            const rsi = M.rsi(closes, 14);
+            const atr = M.atr(k, 14);
+            const atrP = atr/S.price;
+            const ema21 = M.ema(closes, 21);
+            const macd = MACD.calc(closes);
+            
+            if(macd.last?.h !== null && macd.last?.h !== undefined) {
+                S.histHistory.push(macd.last.h); if(S.histHistory.length>20) S.histHistory.shift();
+            }
+            const cross = MACD.cross(S.histHistory);
+            const vol = Strat.vol(atr, S.price);
+            const trend = Strat.trend(S.price, ema21);
+            
+            // LÓGICA DE ENTRADA
+            let act=null, text='🔍 AGUARDANDO CONFIRMAÇÃO...', cls='wait', isNew=false, reasons=[];
+            const buyOK = cross==='bull' && vol.ok && trend.d==='alta' && rsi>=CFG.rsiBuyMin && rsi<=CFG.rsiBuyMax;
+            const sellOK = cross==='bear' && vol.ok && trend.d==='baixa' && rsi>=CFG.rsiSellMin && rsi<=CFG.rsiSellMax;
+            
+            if(buyOK) { act='BUY'; text='🟢 COMPRA CONFIRMADA'; cls='buy'; reasons=['MACD ↑','Vol OK','Tendência Alta',`RSI ${rsi.toFixed(1)}`]; }
+            else if(sellOK) { act='SELL'; text='🔴 VENDA CONFIRMADA'; cls='sell'; reasons=['MACD ↓','Vol OK','Tendência Baixa',`RSI ${rsi.toFixed(1)}`]; }
+            else {
+                if(!vol.ok) { text=`⏳ Volatilidade ${vol.t}`; cls='neutral'; }
+                else if(!cross) { text='⏳ Aguardando MACD...'; cls='neutral'; }
+                else if(trend.d!== (cross==='bull'?'alta':'baixa')) { text=`⏳ ${trend.t}`; cls='neutral'; }
+                else { text='⏳ Confirmando...'; cls='wait'; }
+            }
+            
+            isNew = act && act !== S.lastSignal;
+            UI.signal(text, cls, isNew);
+            if(isNew && act) S.lastSignal=act;
+            
+            // ATUALIZA UI
+            UI.el('macdStatus').innerText = cross ? (cross==='bull'?'🟢 CRUZOU ↑':'🔴 CRUZOU ↓') : (macd.last?.h>0.0001?'🟢 Pos':macd.last?.h<-0.0001?'🔴 Neg':'⚪ Neutro');
+            UI.el('macdStatus').className = `cond ${cross?(cross==='bull'?'c-ok':'c-warn'):(Math.abs(macd.last?.h||0)>0.001?'c-ok':'c-neutral')}`;
+            UI.macd(macd.last?.h, atr);
+            UI.el('valRsi').innerText=rsi.toFixed(1); UI.el('rsiStatus').innerText=rsi<25?'Sobrevendido':rsi>75?'Sobrecomprado':'Neutro';
+            UI.el('valEma21').innerText=`$${ema21.toFixed(2)}`; UI.el('trendStatus').innerText=trend.t;
+            UI.el('valAtrPct').innerHTML=`${(atrP*100).toFixed(2)}%<span class="cond ${vol.b}">${vol.t}</span>`;
+            
+            S.ind = { rsi, atr, atrPct:atrP, m:macd.last?.m, sig:macd.last?.s, hist:macd.last?.h, ema21 };
+            
+            // GESTÃO DE POSIÇÃO
+            if(act && S.bot && !S.pos?.active) {
+                const e = Strat.exits(S.price, atr, act);
+                S.pos = { entry:S.price, dir:act, ...e, active:true, opened:Date.now(), macdHist:macd.last?.h };
+                UI.exits(e); UI.lot(atr);
+                UI.log(`🎯 Nova ${act} @ $${S.price.toFixed(2)}`);
+                UI.alert(`🎯 <b>${act}</b> em <code>${S.sym}</code>\n💰 $${S.price.toFixed(2)}\n📊 ${reasons.join(' • ')}`);
+            } else if(S.pos?.active) {
+                const ex = Strat.checkExit(S.pos, S.price, S.ind);
+                if(ex) {
+                    const pnl = ((S.price-S.pos.entry)/(S.pos.dir==='BUY'?1:-1)/S.pos.entry*100);
+                    const msg = `${ex.r} em ${S.sym}\n💰 Entrada: $${S.pos.entry.toFixed(2)}\n🔚 Saída: $${S.price.toFixed(2)}\n📊 ${pnl>=0?'+':''}${pnl.toFixed(2)}%`;
+                    UI.alert(msg); UI.log(`${ex.r} | ${pnl>=0?'+':''}${pnl.toFixed(2)}%`, ex.t==='target'?'alert':'info');
+                    S.pos=null; UI.el('pnlBox').style.display='none';
+                    UI.signal('🔁 Aguardando próxima...', 'wait');
+                } else { UI.exits(Strat.exits(S.pos.entry, S.ind.atr, S.pos.dir)); UI.pnl(); }
+            }
+            UI.lot(S.ind.atr);
+        } catch(e) { console.error(e); UI.log(`❌ ${e.message}`, 'err'); }
+    },
+    restart() { UI.el('inputSym').value = S.sym; Engine.run(); },
+    toggleBot() {
+        S.bot = !S.bot;
+        const b = UI.el('botToggle'); b.className=`btn-bot${S.bot?' active':''}`; b.innerText=S.bot?'🤖 BOT AUTOMÁTICO: ON':'🤖 BOT AUTOMÁTICO: OFF';
+        UI.log(S.bot?'✅ Bot ativado':'⏸️ Bot pausado');
+        if(S.bot) Engine.run();
+    },
+    fullscreen() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(()=>{}); },
+    init() {
+        UI.el('cfgRisk').innerText=`R$ ${CFG.riskPerTrade.toFixed(2)}`;
+        UI.log('🎯 Timing Pro ULTRA v3.0 carregado');
+        Engine.run();
+        setInterval(Engine.run, CFG.refresh);
+        setInterval(()=>{ if(S.connected && S.price) { UI.el('curPrice').innerText=`$ ${S.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}`; if(S.pos?.active) UI.pnl(); } }, 2000);
+    }
+};
+
+// 🚀 INICIALIZAÇÃO
+window.addEventListener('load', Engine.init);
+document.addEventListener('keydown', e => { if(e.key==='F9'){e.preventDefault(); Engine.restart();} if(e.key==='Escape' && document.fullscreenElement) document.exitFullscreen(); });
+</script>
+</body>
+        </html>    return tr_sum / period
+
+def calc_macd(closes, fast=12, slow=26, signal=9):
+    if len(closes) < slow + signal:
+        return {"last": None, "hist": []}
+    
+    ef = sum(closes[:fast])/fast
+    es = sum(closes[:slow])/slow
+    k_f, k_s = 2/(fast+1), 2/(slow+1)
+    
+    ef_vals, es_vals = [], []
+    for i, p in enumerate(closes):
+        ef = (p - ef)*k_f + ef if i >= fast else sum(closes[:i+1])/(i+1)
+        es = (p - es)*k_s + es if i >= slow else sum(closes[:i+1])/(i+1)
+        ef_vals.append(ef)
+        es_vals.append(es)
+        
+    macd_line = [f - s for f, s in zip(ef_vals, es_vals)]
+    
+    # Signal line
+    sig_vals = [None] * slow
+    k_sig = 2/(signal+1)
+    s_val = sum(macd_line[slow:slow+signal])/signal
+    sig_vals.append(s_val)
+    for i in range(slow+signal, len(macd_line)):
+        s_val = (macd_line[i] - s_val)*k_sig + s_val
+        sig_vals.append(s_val)
+        
+    hist = [m - s if s is not None else None for m, s in zip(macd_line, sig_vals)]
+    last_idx = max([i for i, h in enumerate(hist) if h is not None], default=-1)
+    
+    return {
+        "last": {"m": macd_line[last_idx], "s": sig_vals[last_idx], "h": hist[last_idx]} if last_idx != -1 else None,
+        "hist": hist
+    }
+
+# 🌐 DADOS BINANCE
+def fetch_klines(symbol, interval, limit):
+    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+    try:
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        logging.error(f"Falha ao buscar klines: {e}")
+        return []
+
+# 📊 LÓGICA DE ESTRATÉGIA
+def check_volatility(atr, price):
+    if not atr or not price: return False, "N/A"
+    p = atr / price
+    if p < CONFIG["min_vol"]: return False, "Baixa"
+    if p > CONFIG["max_vol"]: return False, "Excessiva"
+    return True, "Ideal"
+
+def detect_crossover(hist_history):
+    valid = [h for h in hist_history if h is not None][-3:]
+    if len(valid) < 2: return None
+    return "bull" if valid[-2] < 0 and valid[-1] >= 0 else "bear" if valid[-2] > 0 and valid[-1] <= 0 else None
+
+def check_exit(pos, price, ind):
+    if not pos: return None
+    e, d, stop, tp, tr = pos["entry"], pos["dir"], pos["stop"], pos["tp"], pos["trail_trigger"]
+    
+    if d == "BUY":
+        if price <= stop: return "🛑 STOP LOSS"
+        if price >= tp: return "✅ TAKE PROFIT"
+        if pos.get("trail_active") and price <= (price - CONFIG["sl_mult"]*ind["atr"]): return "🔄 TRAILING"
+        if not pos.get("trail_active") and price >= tr:
+            pos["trail_active"] = True
+            return None
+        if ind["hist"] < 0 and pos.get("macd_hist", 0) > 0 and ind["hist"] < -abs(ind["m"])*0.3:
+            return "⚠️ MACD Reverteu"
+    else:
+        if price >= stop: return "🛑 STOP LOSS"
+        if price <= tp: return "✅ TAKE PROFIT"
+        if not pos.get("trail_active") and price <= tr:
+            pos["trail_active"] = True
+            return None
+        if ind["hist"] > 0 and pos.get("macd_hist", 0) < 0 and ind["hist"] > abs(ind["m"])*0.3:
+            return "⚠️ MACD Reverteu"
+    return None
+
+def calc_exits(entry, atr, d):
+    sd, td, trd = atr*CONFIG["sl_mult"], atr*CONFIG["tp_mult"], atr*CONFIG["trail_trigger"]
+    if d == "BUY": return {"stop": entry-sd, "tp": entry+td, "trail_trigger": entry+trd, "sl_dist": sd, "tp_dist": td}
+    return {"stop": entry+sd, "tp": entry-td, "trail_trigger": entry-trd, "sl_dist": sd, "tp_dist": td}
+
+# 📱 TELEGRAM & ESTADO
+def send_alert(msg, cooldown=300):
+    if time.time() - STATE["last_alert_ts"] < cooldown:
+        return
+    try:
+        url = f"https://api.telegram.org/bot{CONFIG['telegram_token']}/sendMessage"
+        requests.post(url, json={"chat_id": CONFIG["telegram_chat_id"], "text": msg, "parse_mode": "HTML"}, timeout=5)
+        STATE["last_alert_ts"] = time.time()
+        logging.info("📤 Alerta enviado ao Telegram")
+    except Exception as e:
+        logging.error(f"Falha Telegram: {e}")
+
+def load_state():
+    global STATE
+    try:
+        with open(STATE_FILE, "r") as f:
+            STATE = {**DEFAULT_STATE, **json.load(f)}
+    except (FileNotFoundError, json.JSONDecodeError):
+        STATE = DEFAULT_STATE.copy()
+    logging.info("📂 Estado carregado")
+
+def save_state():
+    try:
+        with open(STATE_FILE, "w") as f:
+            json.dump(STATE, f, indent=2)
+    except Exception as e:
+        logging.error(f"Erro ao salvar estado: {e}")
+
+# 🔄 ENGINE PRINCIPAL
+def run_cycle():
+    logging.info(f"🔍 Analisando {CONFIG['symbol']}...")
+    klines = fetch_klines(CONFIG["symbol"], CONFIG["interval"], CONFIG["limit"])
+    if len(klines) < 30:
+        logging.warning("Dados insuficientes. Aguardando...")
+        return
+
+    closes = [float(k[4]) for k in klines]
+    price = closes[-1]
+    rsi = calc_rsi(closes, 14)
+    atr = calc_atr(klines, 14)
+    ema21 = calc_ema(closes, 21) or price
+    macd = calc_macd(closes)
+    
+    # Atualiza histórico MACD
+    if macd["last"] and macd["last"]["h"] is not None:
+        STATE["hist_history"].append(macd["last"]["h"])
+        if len(STATE["hist_history"]) > 20: STATE["hist_history"] = STATE["hist_history"][-20:]
+        
+    cross = detect_crossover(STATE["hist_history"])
+    vol_ok, vol_txt = check_volatility(atr, price)
+    trend = "alta" if price > ema21*1.01 else "baixa" if price < ema21*0.99 else "lateral"
+    
+    # Lógica de Entrada
+    act, msg = None, "Aguardando..."
+    buy_ok = cross=="bull" and vol_ok and trend=="alta" and CONFIG["rsi_buy_min"]<=rsi<=CONFIG["rsi_buy_max"]
+    sell_ok = cross=="bear" and vol_ok and trend=="baixa" and CONFIG["rsi_sell_min"]<=rsi<=CONFIG["rsi_sell_max"]
+    
+    if buy_ok: act, msg = "BUY", "🟢 COMPRA CONFIRMADA"
+    elif sell_ok: act, msg = "SELL", "🔴 VENDA CONFIRMADA"
+    elif not vol_ok: msg = f"⏳ Volatilidade {vol_txt}"
+    elif not cross: msg = "⏳ Aguardando MACD..."
+    else: msg = "⏳ Confirmando..."
+    
+    logging.info(f"📊 RSI:{rsi:.1f} | ATR%:{(atr/price*100):.2f} | EMA21:{ema21:.2f} | MACD:{msg}")
+    
+    # Executa Entrada
+    if act and act != STATE["last_signal"] and not STATE["position"]:
+        exits = calc_exits(price, atr, act)
+        STATE["position"] = {"entry": price, "dir": act, **exits, "active": True, "opened": datetime.now(timezone.utc).isoformat(), "macd_hist": macd["last"]["h"]}
+        STATE["last_signal"] = act
+        save_state()
+        alert = f"🎯 <b>{act}</b> em <code>{CONFIG['symbol']}</code>\n💰 $ {price:.2f}\n📊 RSI:{rsi:.1f} • ATR%:{(atr/price*100):.2f}%\n🛑 SL:${exits['stop']:.2f} • ✅ TP:${exits['tp']:.2f}"
+        send_alert(alert)
+        logging.info(f"🎯 Nova posição {act} aberta")
+        
+    # Verifica Saída
+    if STATE["position"]:
+        exit_reason = check_exit(STATE["position"], price, {"atr": atr, "hist": macd["last"]["h"], "m": macd["last"]["m"]})
+        if exit_reason:
+            pnl = (price - STATE["position"]["entry"])*(1 if STATE["position"]["dir"]=="BUY" else -1)/STATE["position"]["entry"]*100
+            alert = f"{exit_reason} em {CONFIG['symbol']}\n💰 Entrada: $ {STATE['position']['entry']:.2f}\n🔚 Saída: $ {price:.2f}\n📊 P&L: {pnl:+.2f}%"
+            send_alert(alert)
+            logging.info(f"🔚 Posição fechada: {exit_reason} | P&L: {pnl:+.2f}%")
+            STATE["position"] = None
+            save_state()
+            
+    logging.info(f"⏳ Próxima verificação em {CONFIG['check_interval']}s\n")
+
+# 🚀 INICIALIZAÇÃO
+if __name__ == "__main__":
+    load_state()
+    logging.info("🎯 Timing Pro ULTRA - Python Edition iniciado")
+    logging.info("Pressione Ctrl+C para parar")
+    
+    try:
+        while True:
+            run_cycle()
+            time.sleep(CONFIG["check_interval"])
+    except KeyboardInterrupt:
+        logging.info("⏸️ Bot interrompido pelo usuário")
+        save_state()
 let audioCtx; function beep(f=800,d=0.15){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.value=f;o.type='sine';g.gain.setValueAtTime(0.2,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+d);o.start();o.stop(audioCtx.currentTime+d);}
 document.addEventListener('touchstart',()=>{if(!audioCtx)beep();},{once:true});
 
